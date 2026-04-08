@@ -156,6 +156,7 @@ async function main() {
     }
 
     fs.rmSync(targetDir, { recursive: true, force: true });
+    fs.mkdirSync(path.dirname(targetDir), { recursive: true });
     try {
       fs.renameSync(extractedDir, targetDir);
     } catch (error) {
