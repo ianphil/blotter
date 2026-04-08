@@ -1,9 +1,10 @@
 // Shared SDK loader — singleton CopilotClient.
-// Loads @github/copilot-sdk from global npm install since the SDK is ESM-only
-// and spawns @github/copilot as a child process — both need the real filesystem.
-// Adapted from cmux's SdkLoader pattern.
+// Loads @github/copilot-sdk at runtime (not bundled — ESM-only, spawns child processes).
+// On packaged builds, auto-installs SDK locally using the bundled Node runtime.
+// Adapted from cmux's SdkLoader + CopilotBootstrap pattern.
 
-import { execSync } from 'child_process';
+import { app } from 'electron';
+import { execSync, spawn } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -17,6 +18,158 @@ let sdkModule: typeof import('@github/copilot-sdk') | null = null;
 let clientInstance: CopilotClientType | null = null;
 let startPromise: Promise<CopilotClientType> | null = null;
 let cachedPrefix: string | null = null;
+let bootstrapPromise: Promise<void> | null = null;
+
+// ---------------------------------------------------------------------------
+// Path helpers
+// ---------------------------------------------------------------------------
+
+function getBootstrapDir(): string {
+  return path.join(app.getPath('userData'), 'copilot');
+}
+
+function getLocalNodeModulesDir(): string {
+  return path.join(getBootstrapDir(), 'node_modules');
+}
+
+function getBundledNodeRoot(): string | null {
+  if (!app.isPackaged) return null;
+  const root = path.join(process.resourcesPath, 'node');
+  return fs.existsSync(root) ? root : null;
+}
+
+function getBundledNodePath(): string | null {
+  const root = getBundledNodeRoot();
+  if (!root) return null;
+  const p = isWindows
+    ? path.join(root, 'node.exe')
+    : path.join(root, 'bin', 'node');
+  return fs.existsSync(p) ? p : null;
+}
+
+function getBundledNpmCliPath(): string | null {
+  const root = getBundledNodeRoot();
+  if (!root) return null;
+  const candidates = [
+    path.join(root, 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+    path.join(root, 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Local (bootstrap) install — used in packaged builds
+// ---------------------------------------------------------------------------
+
+function getCliPathFromModules(modulesDir: string): string | null {
+  const nestedCli = path.join(
+    modulesDir, '@github', 'copilot-sdk', 'node_modules', '@github', 'copilot', 'npm-loader.js',
+  );
+  if (fs.existsSync(nestedCli)) return nestedCli;
+
+  const flatCli = path.join(modulesDir, '@github', 'copilot', 'npm-loader.js');
+  if (fs.existsSync(flatCli)) return flatCli;
+
+  return null;
+}
+
+function isLocalInstallReady(): boolean {
+  const sdkPkg = path.join(getLocalNodeModulesDir(), '@github', 'copilot-sdk', 'package.json');
+  return fs.existsSync(sdkPkg) && Boolean(getCliPathFromModules(getLocalNodeModulesDir()));
+}
+
+async function runNpmInstall(): Promise<void> {
+  const nodePath = getBundledNodePath();
+  const npmCliPath = getBundledNpmCliPath();
+  if (!nodePath || !npmCliPath) {
+    throw new Error('Bundled Node runtime not found. Please reinstall genesis-ui.');
+  }
+
+  const prefixDir = getBootstrapDir();
+  const cacheDir = path.join(prefixDir, '.npm-cache');
+  fs.mkdirSync(prefixDir, { recursive: true });
+
+  await new Promise<void>((resolve, reject) => {
+    const child = spawn(nodePath, [
+      npmCliPath,
+      'install',
+      '--no-fund',
+      '--no-audit',
+      '--loglevel=warn',
+      '--prefix', prefixDir,
+      '@github/copilot-sdk',
+    ], {
+      env: {
+        ...process.env,
+        npm_config_prefix: prefixDir,
+        npm_config_cache: cacheDir,
+        npm_config_update_notifier: 'false',
+      },
+    });
+
+    child.stdout.on('data', (d) => console.log('[SdkLoader]', d.toString().trim()));
+    child.stderr.on('data', (d) => console.warn('[SdkLoader]', d.toString().trim()));
+    child.on('error', reject);
+    child.on('close', (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(`npm install exited with code ${code}`));
+    });
+  });
+}
+
+function ensureCopilotShim(): void {
+  const cliPath = getCliPathFromModules(getLocalNodeModulesDir());
+  const nodePath = getBundledNodePath();
+  if (!cliPath || !nodePath || !fs.existsSync(cliPath) || !fs.existsSync(nodePath)) return;
+
+  const shimPath = path.join(getBootstrapDir(), isWindows ? 'copilot.cmd' : 'copilot');
+  const shimContent = isWindows
+    ? `@echo off\r\n"${nodePath}" "${cliPath}" %*\r\n`
+    : `#!/bin/sh\n"${nodePath}" "${cliPath}" "$@"\n`;
+  const existing = fs.existsSync(shimPath) ? fs.readFileSync(shimPath, 'utf-8') : null;
+  if (existing === shimContent) return;
+
+  fs.mkdirSync(getBootstrapDir(), { recursive: true });
+  fs.writeFileSync(shimPath, shimContent, { encoding: 'utf-8' });
+  if (!isWindows) fs.chmodSync(shimPath, 0o755);
+}
+
+async function ensureSdkInstalled(): Promise<void> {
+  if (!app.isPackaged) return; // dev mode — use global install
+
+  if (isLocalInstallReady()) {
+    ensureCopilotShim();
+    return;
+  }
+
+  if (bootstrapPromise) return bootstrapPromise;
+
+  bootstrapPromise = (async () => {
+    console.log('[SdkLoader] SDK not found locally — installing via bundled Node...');
+    await runNpmInstall();
+    if (!isLocalInstallReady()) {
+      throw new Error('SDK installation did not complete.');
+    }
+    ensureCopilotShim();
+    console.log('[SdkLoader] SDK installed successfully.');
+  })();
+
+  try {
+    await bootstrapPromise;
+  } catch (err) {
+    console.error('[SdkLoader] Install failed:', err);
+    throw err;
+  } finally {
+    bootstrapPromise = null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Global install discovery — fallback / dev mode
+// ---------------------------------------------------------------------------
 
 function parseNpmrcPrefix(rcPath: string): string | null {
   try {
@@ -62,7 +215,6 @@ function getWellKnownPrefixes(): string[] {
   } else {
     prefixes.push('/usr/local', '/opt/homebrew', '/usr');
 
-    // nvm
     const nvmDir = path.join(home, '.nvm', 'versions', 'node');
     if (fs.existsSync(nvmDir)) {
       try {
@@ -71,7 +223,6 @@ function getWellKnownPrefixes(): string[] {
       } catch { /* ignore */ }
     }
 
-    // volta
     const voltaDir = path.join(home, '.volta', 'tools', 'image', 'node');
     if (fs.existsSync(voltaDir)) {
       try {
@@ -126,27 +277,32 @@ function getGlobalNodeModules(): string {
   return modulesDir;
 }
 
-function getCliPathFromModules(modulesDir: string): string | null {
-  const nestedCli = path.join(
-    modulesDir, '@github', 'copilot-sdk', 'node_modules', '@github', 'copilot', 'npm-loader.js',
-  );
-  if (fs.existsSync(nestedCli)) return nestedCli;
+// ---------------------------------------------------------------------------
+// Resolve SDK modules dir — local first, then global
+// ---------------------------------------------------------------------------
 
-  const flatCli = path.join(modulesDir, '@github', 'copilot', 'npm-loader.js');
-  if (fs.existsSync(flatCli)) return flatCli;
-
-  return null;
+function resolveNodeModulesDir(): string {
+  // Packaged: prefer local bootstrap install
+  if (app.isPackaged && isLocalInstallReady()) {
+    return getLocalNodeModulesDir();
+  }
+  // Fallback to global
+  return getGlobalNodeModules();
 }
 
-/** Find system Node.js binary — needed because Electron's process.execPath isn't node. */
+// ---------------------------------------------------------------------------
+// Node.js binary for spawning CLI
+// ---------------------------------------------------------------------------
+
 function findSystemNode(): string | null {
+  const bundled = getBundledNodePath();
+  if (bundled) return bundled;
+
   if (isWindows) {
-    // Check common Windows locations
     const candidates = [
       path.join(process.env.ProgramFiles || '', 'nodejs', 'node.exe'),
       path.join(process.env.LOCALAPPDATA || '', 'fnm_multishells', 'node.exe'),
     ];
-    // Also try to find via PATH
     try {
       const result = execSync('where.exe node', { encoding: 'utf-8', timeout: 3000 }).trim();
       const firstLine = result.split(/\r?\n/)[0];
@@ -165,11 +321,15 @@ function findSystemNode(): string | null {
   return null;
 }
 
+// ---------------------------------------------------------------------------
+// Public API
+// ---------------------------------------------------------------------------
+
 export async function loadSdk(): Promise<typeof import('@github/copilot-sdk')> {
   if (!sdkModule) {
-    const modulesDir = getGlobalNodeModules();
+    await ensureSdkInstalled();
+    const modulesDir = resolveNodeModulesDir();
     const sdkEntry = path.join(modulesDir, '@github', 'copilot-sdk', 'dist', 'index.js');
-    // Hide import() from bundler static analysis
     // eslint-disable-next-line @typescript-eslint/no-implied-eval
     sdkModule = await (new Function('url', 'return import(url)')(
       pathToFileURL(sdkEntry).href
@@ -185,7 +345,7 @@ export async function getSharedClient(): Promise<CopilotClientType> {
   startPromise = (async () => {
     console.log('[SdkLoader] Loading SDK...');
     const { CopilotClient } = await loadSdk();
-    const modulesDir = getGlobalNodeModules();
+    const modulesDir = resolveNodeModulesDir();
     const cliPath = getCliPathFromModules(modulesDir);
 
     if (!cliPath) {
@@ -197,21 +357,17 @@ export async function getSharedClient(): Promise<CopilotClientType> {
     const logDir = path.join(os.homedir(), '.genesis-ui', 'logs');
     fs.mkdirSync(logDir, { recursive: true });
 
-    // The SDK uses process.execPath to run .js CLI entry points.
-    // In Electron, process.execPath is electron.exe — NOT node.exe.
-    // This breaks stdio communication. Fix: pass system node as cliPath
-    // with the JS entry point as the first arg (same pattern as cmux packaged builds).
     let resolvedCliPath = cliPath;
     const cliArgs = ['--log-dir', logDir];
 
     if (cliPath.endsWith('.js')) {
       const systemNode = findSystemNode();
       if (systemNode) {
-        console.log('[SdkLoader] Using system Node.js:', systemNode);
+        console.log('[SdkLoader] Using Node.js:', systemNode);
         resolvedCliPath = systemNode;
         cliArgs.unshift(cliPath);
       } else {
-        console.warn('[SdkLoader] System node not found, falling back to process.execPath');
+        console.warn('[SdkLoader] Node not found, falling back to process.execPath');
       }
     }
 
