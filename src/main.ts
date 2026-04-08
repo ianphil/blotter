@@ -4,6 +4,8 @@ import started from 'electron-squirrel-startup';
 import { ChatService } from './main/services/ChatService';
 import { ExtensionLoader } from './main/services/ExtensionLoader';
 import { loadCanvasExtension } from './main/services/adapters/canvas';
+import { loadCronExtension } from './main/services/adapters/cron';
+import { loadIdeaExtension } from './main/services/adapters/idea';
 import { setupChatIPC } from './main/ipc/chat';
 import { setupAgentIPC, restoreConfig } from './main/ipc/agent';
 import { stopSharedClient } from './main/services/SdkLoader';
@@ -15,6 +17,8 @@ if (started) {
 const chatService = new ChatService();
 const extensionLoader = new ExtensionLoader();
 extensionLoader.registerAdapter('canvas', loadCanvasExtension);
+extensionLoader.registerAdapter('cron', loadCronExtension);
+extensionLoader.registerAdapter('idea', loadIdeaExtension);
 chatService.setExtensionLoader(extensionLoader);
 let mainWindow: BrowserWindow | null = null;
 let isQuitting = false;
