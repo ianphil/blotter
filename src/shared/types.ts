@@ -14,6 +14,7 @@ export interface AgentStatus {
   sessionActive: boolean;
   uptime: number | null;
   error: string | null;
+  extensions: string[];
 }
 
 export interface AppConfig {

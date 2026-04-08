@@ -26,12 +26,14 @@ function saveConfig(config: AppConfig): void {
 export function setupAgentIPC(chatService: ChatService): void {
   ipcMain.handle('agent:getStatus', async (): Promise<AgentStatus> => {
     const mindPath = chatService.getMindPath();
+    const loader = chatService.getExtensionLoader();
     return {
       connected: mindPath !== null,
       mindPath,
       sessionActive: mindPath !== null,
       uptime: null,
       error: null,
+      extensions: loader ? loader.getLoadedExtensions() : [],
     };
   });
 

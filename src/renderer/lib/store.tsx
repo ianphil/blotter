@@ -29,6 +29,7 @@ const initialState: AppState = {
     sessionActive: false,
     uptime: null,
     error: null,
+    extensions: [],
   },
 };
 

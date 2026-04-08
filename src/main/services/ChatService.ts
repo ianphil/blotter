@@ -2,6 +2,7 @@
 // Adapted from cmux's CopilotService pattern.
 
 import { getSharedClient } from './SdkLoader';
+import type { ExtensionLoader } from './ExtensionLoader';
 
 type CopilotSessionType = import('@github/copilot-sdk').CopilotSession;
 
@@ -9,6 +10,7 @@ export class ChatService {
   private sessions: Map<string, CopilotSessionType> = new Map();
   private abortControllers: Map<string, AbortController> = new Map();
   private mindPath: string | null = null;
+  private extensionLoader: ExtensionLoader | null = null;
 
   setMindPath(mindPath: string): void {
     this.mindPath = mindPath;
@@ -16,6 +18,14 @@ export class ChatService {
 
   getMindPath(): string | null {
     return this.mindPath;
+  }
+
+  setExtensionLoader(loader: ExtensionLoader): void {
+    this.extensionLoader = loader;
+  }
+
+  getExtensionLoader(): ExtensionLoader | null {
+    return this.extensionLoader;
   }
 
   private async getOrCreateSession(conversationId: string): Promise<CopilotSessionType> {
@@ -29,6 +39,19 @@ export class ChatService {
 
       if (this.mindPath) {
         config.workingDirectory = this.mindPath;
+
+        // Load extension tools from the mind directory
+        if (this.extensionLoader) {
+          try {
+            const tools = await this.extensionLoader.loadTools(this.mindPath);
+            if (tools.length > 0) {
+              config.tools = tools;
+              console.log(`[ChatService] Loaded ${tools.length} extension tool(s)`);
+            }
+          } catch (err) {
+            console.error('[ChatService] Failed to load extension tools:', err);
+          }
+        }
       }
 
       // Auto-approve permissions so agent tools don't block
@@ -134,6 +157,10 @@ export class ChatService {
       await session.destroy().catch(() => {});
       this.sessions.delete(conversationId);
     }
+    // Clean up extension resources when session is destroyed
+    if (this.extensionLoader) {
+      await this.extensionLoader.cleanup();
+    }
   }
 
   async stop(): Promise<void> {
@@ -142,5 +169,8 @@ export class ChatService {
     }
     this.sessions.clear();
     this.abortControllers.clear();
+    if (this.extensionLoader) {
+      await this.extensionLoader.cleanup();
+    }
   }
 }
