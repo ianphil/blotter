@@ -30,7 +30,7 @@ export function StreamingMessage({ blocks, isStreaming }: Props) {
   const showTrailingIndicator = isStreaming && (!lastBlock || lastBlock.type !== 'text');
 
   return (
-    <div className="space-y-0">
+    <div className="flex flex-col">
       {blocks.map((block, i) => {
         switch (block.type) {
           case 'text':
