@@ -13,19 +13,45 @@ const ACCESS_TOKEN_URL = 'https://github.com/login/oauth/access_token';
 const AUTH_SCOPE = 'read:user,read:org,repo,gist';
 const CREDENTIAL_TARGET_PREFIX = 'copilot-cli/https://github.com';
 
-// Win32 Credential Manager — write UTF-8 blobs compatible with keytar
-const credentialNative = (() => {
-  // PowerShell script that calls CredWriteW with a UTF-8 encoded blob.
-  // cmdkey stores UTF-16LE; keytar reads UTF-8. This bridges the gap.
-  const writeScript = (target: string, user: string, token: string) => `
-Add-Type -TypeDefinition @"
+// Win32 Credential Manager — write UTF-8 blobs compatible with keytar.
+// Uses a precompiled .NET script via PowerShell to call CredWriteW directly.
+// cmdkey stores UTF-16LE; keytar reads UTF-8. This bridges the gap.
+
+function writeCredentialUtf8(target: string, user: string, token: string): boolean {
+  // Write a temp .cs file, compile, and run — too slow.
+  // Instead, use csc.exe directly via a temp C# source to avoid Add-Type latency.
+  // Actually simplest: write the token as raw UTF-8 bytes to a temp file,
+  // then use a minimal PowerShell script with P/Invoke preloaded from disk.
+  //
+  // Cleanest approach: Node.js can call advapi32 CredWriteW via a tiny native shim.
+  // But for now, write a .NET console app inline with csc.
+
+  // Actually — just write the raw bytes ourselves. Node has access to everything we need.
+  // Use a C# one-liner via dotnet-script or csc. But those may not be present.
+
+  // Final approach: Use node child_process to run a small C# program via csc.exe
+  // which is always present in the .NET Framework directory on Windows.
+  const fs = require('fs') as typeof import('fs');
+  const path = require('path') as typeof import('path');
+  const os = require('os') as typeof import('os');
+  const { execFileSync: efs } = require('child_process') as typeof import('child_process');
+
+  const tmpDir = path.join(os.tmpdir(), 'chamber-cred');
+  fs.mkdirSync(tmpDir, { recursive: true });
+
+  const csPath = path.join(tmpDir, 'CredWrite.cs');
+  const exePath = path.join(tmpDir, 'CredWrite.exe');
+
+  // Only compile once — reuse the exe if it exists
+  if (!fs.existsSync(exePath)) {
+    const csSource = `
 using System;
 using System.Runtime.InteropServices;
 using System.Text;
 
-public class CredWriter {
+class Program {
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    public struct CREDENTIAL {
+    struct CREDENTIAL {
         public int Flags;
         public int Type;
         public string TargetName;
@@ -41,48 +67,59 @@ public class CredWriter {
     }
 
     [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    public static extern bool CredWrite(ref CREDENTIAL credential, int flags);
+    static extern bool CredWrite(ref CREDENTIAL cred, int flags);
 
-    [DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
-    public static extern bool CredDelete(string target, int type, int flags);
-
-    public static bool Write(string target, string user, string password) {
-        byte[] passwordBytes = Encoding.UTF8.GetBytes(password);
-        IntPtr blob = Marshal.AllocHGlobal(passwordBytes.Length);
-        Marshal.Copy(passwordBytes, 0, blob, passwordBytes.Length);
-
+    static int Main(string[] args) {
+        if (args.Length < 3) { Console.Error.WriteLine("Usage: CredWrite target user token"); return 1; }
+        byte[] blob = Encoding.UTF8.GetBytes(args[2]);
+        IntPtr blobPtr = Marshal.AllocHGlobal(blob.Length);
+        Marshal.Copy(blob, 0, blobPtr, blob.Length);
         CREDENTIAL cred = new CREDENTIAL();
-        cred.Type = 1; // CRED_TYPE_GENERIC
-        cred.TargetName = target;
-        cred.UserName = user;
-        cred.CredentialBlob = blob;
-        cred.CredentialBlobSize = passwordBytes.Length;
-        cred.Persist = 2; // CRED_PERSIST_LOCAL_MACHINE
-
-        bool result = CredWrite(ref cred, 0);
-        Marshal.FreeHGlobal(blob);
-        return result;
+        cred.Type = 1;
+        cred.TargetName = args[0];
+        cred.UserName = args[1];
+        cred.CredentialBlob = blobPtr;
+        cred.CredentialBlobSize = blob.Length;
+        cred.Persist = 2;
+        bool ok = CredWrite(ref cred, 0);
+        Marshal.FreeHGlobal(blobPtr);
+        if (!ok) { Console.Error.WriteLine("CredWrite failed: " + Marshal.GetLastWin32Error()); return 1; }
+        return 0;
     }
-}
-"@
-[CredWriter]::Write('${target.replace(/'/g, "''")}', '${user.replace(/'/g, "''")}', '${token.replace(/'/g, "''")}')
-`;
+}`;
+    fs.writeFileSync(csPath, csSource);
 
-  return {
-    write(target: string, user: string, token: string): boolean {
-      try {
-        const result = execFileSync('powershell', [
-          '-NoProfile', '-NonInteractive', '-Command',
-          writeScript(target, user, token),
-        ], { encoding: 'utf-8', timeout: 10_000 }).trim();
-        return result === 'True';
-      } catch (err) {
-        console.error('[Auth] CredWrite failed:', err);
-        return false;
-      }
-    },
-  };
-})();
+    // Find csc.exe from .NET Framework (always present on Windows)
+    const frameworkDir = path.join(
+      process.env.WINDIR || 'C:\\Windows',
+      'Microsoft.NET', 'Framework64', 'v4.0.30319'
+    );
+    const cscPath = path.join(frameworkDir, 'csc.exe');
+
+    if (!fs.existsSync(cscPath)) {
+      console.error('[Auth] csc.exe not found at', cscPath);
+      return false;
+    }
+
+    try {
+      efs(cscPath, ['/nologo', '/optimize', `/out:${exePath}`, csPath], {
+        stdio: 'pipe',
+        timeout: 15_000,
+      });
+    } catch (err) {
+      console.error('[Auth] Failed to compile CredWrite:', err);
+      return false;
+    }
+  }
+
+  try {
+    efs(exePath, [target, user, token], { stdio: 'pipe', timeout: 5_000 });
+    return true;
+  } catch (err) {
+    console.error('[Auth] CredWrite.exe failed:', err);
+    return false;
+  }
+}
 
 export interface AuthProgress {
   step: 'device_code' | 'polling' | 'authenticated' | 'error';
@@ -182,7 +219,7 @@ export class AuthService {
     const target = `${CREDENTIAL_TARGET_PREFIX}:${login}`;
     const user = `https://github.com:${login}`;
     try {
-      const ok = credentialNative.write(target, user, token);
+      const ok = writeCredentialUtf8(target, user, token);
       if (ok) {
         console.log(`[Auth] Stored credential for ${login} (UTF-8 blob)`);
       } else {
