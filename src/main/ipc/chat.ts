@@ -4,13 +4,17 @@ import { ChatService } from '../services/ChatService';
 import type { ChatEvent } from '../../shared/types';
 
 export function setupChatIPC(chatService: ChatService): void {
-  ipcMain.handle('chat:send', async (event, conversationId: string, message: string, messageId: string) => {
+  ipcMain.handle('chat:send', async (event, conversationId: string, message: string, messageId: string, model?: string) => {
     const win = BrowserWindow.fromWebContents(event.sender);
     if (!win) return;
 
     const emit = (evt: ChatEvent) => win.webContents.send('chat:event', messageId, evt);
 
-    await chatService.sendMessage(conversationId, message, messageId, emit);
+    await chatService.sendMessage(conversationId, message, messageId, emit, model);
+  });
+
+  ipcMain.handle('chat:listModels', async () => {
+    return chatService.listModels();
   });
 
   ipcMain.handle('chat:stop', async (event, conversationId: string, messageId: string) => {

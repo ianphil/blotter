@@ -4,12 +4,13 @@ import type { ElectronAPI } from './shared/types';
 
 const electronAPI: ElectronAPI = {
   chat: {
-    send: (conversationId, message, messageId) =>
-      ipcRenderer.invoke('chat:send', conversationId, message, messageId),
+    send: (conversationId, message, messageId, model) =>
+      ipcRenderer.invoke('chat:send', conversationId, message, messageId, model),
     stop: (conversationId, messageId) =>
       ipcRenderer.invoke('chat:stop', conversationId, messageId),
     newConversation: (conversationId) =>
       ipcRenderer.invoke('chat:newConversation', conversationId),
+    listModels: () => ipcRenderer.invoke('chat:listModels'),
     onEvent: (callback) => createIpcListener(ipcRenderer, 'chat:event', callback),
   },
   agent: {

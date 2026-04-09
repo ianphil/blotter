@@ -3,7 +3,7 @@
 
 import { getSharedClient } from './SdkLoader';
 import type { ExtensionLoader } from './ExtensionLoader';
-import type { ChatEvent } from '../../shared/types';
+import type { ChatEvent, ModelInfo } from '../../shared/types';
 
 type CopilotSessionType = import('@github/copilot-sdk').CopilotSession;
 
@@ -29,7 +29,7 @@ export class ChatService {
     return this.extensionLoader;
   }
 
-  private async getOrCreateSession(conversationId: string): Promise<CopilotSessionType> {
+  private async getOrCreateSession(conversationId: string, model?: string): Promise<CopilotSessionType> {
     let session = this.sessions.get(conversationId);
     if (!session) {
       console.log('[ChatService] No existing session, creating new one');
@@ -39,6 +39,11 @@ export class ChatService {
       const config: Record<string, unknown> = {
         streaming: true,
       };
+
+      if (model) {
+        config.model = model;
+        console.log('[ChatService] Using model:', model);
+      }
 
       if (this.mindPath) {
         config.workingDirectory = this.mindPath;
@@ -79,6 +84,7 @@ export class ChatService {
     prompt: string,
     messageId: string,
     emit: (event: ChatEvent) => void,
+    model?: string,
   ): Promise<void> {
     const abortController = new AbortController();
     this.abortControllers.set(conversationId, abortController);
@@ -88,7 +94,7 @@ export class ChatService {
 
     try {
       console.log('[ChatService] Creating/getting session for', conversationId);
-      const session = await this.getOrCreateSession(conversationId);
+      const session = await this.getOrCreateSession(conversationId, model);
       console.log('[ChatService] Session ready, sending prompt');
 
       // Text streaming
@@ -235,6 +241,17 @@ export class ChatService {
     }
     if (this.extensionLoader) {
       await this.extensionLoader.cleanup();
+    }
+  }
+
+  async listModels(): Promise<ModelInfo[]> {
+    try {
+      const client = await getSharedClient();
+      const models = await client.listModels();
+      return models.map((m: { id: string; name: string }) => ({ id: m.id, name: m.name }));
+    } catch (err) {
+      console.error('[ChatService] Failed to list models:', err);
+      return [];
     }
   }
 

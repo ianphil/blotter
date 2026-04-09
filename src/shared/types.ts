@@ -65,6 +65,11 @@ export interface AgentStatus {
   extensions: string[];
 }
 
+export interface ModelInfo {
+  id: string;
+  name: string;
+}
+
 export interface AppConfig {
   mindPath: string | null;
   theme: 'light' | 'dark' | 'system';
@@ -72,9 +77,10 @@ export interface AppConfig {
 
 export interface ElectronAPI {
   chat: {
-    send: (conversationId: string, message: string, messageId: string) => Promise<void>;
+    send: (conversationId: string, message: string, messageId: string, model?: string) => Promise<void>;
     stop: (conversationId: string, messageId: string) => Promise<void>;
     newConversation: (conversationId: string) => Promise<void>;
+    listModels: () => Promise<ModelInfo[]>;
     onEvent: (callback: (messageId: string, event: ChatEvent) => void) => () => void;
   };
   agent: {

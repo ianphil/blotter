@@ -1,11 +1,13 @@
 import React, { createContext, useContext, useReducer, type Dispatch } from 'react';
-import type { ChatMessage, ChatEvent, AgentStatus, ContentBlock } from '../../shared/types';
+import type { ChatMessage, ChatEvent, AgentStatus, ModelInfo, ContentBlock } from '../../shared/types';
 
 interface AppState {
   messages: ChatMessage[];
   conversationId: string;
   isStreaming: boolean;
   agentStatus: AgentStatus;
+  availableModels: ModelInfo[];
+  selectedModel: string | null;
 }
 
 type AppAction =
@@ -13,6 +15,8 @@ type AppAction =
   | { type: 'ADD_ASSISTANT_MESSAGE'; payload: { id: string; timestamp: number } }
   | { type: 'CHAT_EVENT'; payload: { messageId: string; event: ChatEvent } }
   | { type: 'SET_AGENT_STATUS'; payload: AgentStatus }
+  | { type: 'SET_AVAILABLE_MODELS'; payload: ModelInfo[] }
+  | { type: 'SET_SELECTED_MODEL'; payload: string | null }
   | { type: 'CLEAR_MESSAGES' }
   | { type: 'NEW_CONVERSATION' };
 
@@ -28,6 +32,8 @@ const initialState: AppState = {
     error: null,
     extensions: [],
   },
+  availableModels: [],
+  selectedModel: localStorage.getItem('genesis-ui:selectedModel'),
 };
 
 /** Extract plain text from content blocks (for search, accessibility, etc.) */
@@ -175,6 +181,17 @@ function appReducer(state: AppState, action: AppAction): AppState {
 
     case 'SET_AGENT_STATUS':
       return { ...state, agentStatus: action.payload };
+
+    case 'SET_AVAILABLE_MODELS':
+      return { ...state, availableModels: action.payload };
+
+    case 'SET_SELECTED_MODEL':
+      if (action.payload) {
+        localStorage.setItem('genesis-ui:selectedModel', action.payload);
+      } else {
+        localStorage.removeItem('genesis-ui:selectedModel');
+      }
+      return { ...state, selectedModel: action.payload };
 
     case 'CLEAR_MESSAGES':
       return { ...state, messages: [] };
