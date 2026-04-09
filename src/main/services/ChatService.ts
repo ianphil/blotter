@@ -85,10 +85,17 @@ export class ChatService {
       if (this.mindPath) {
         config.workingDirectory = this.mindPath;
 
-        // Inject SOUL.md + agent instructions as system message
+        // Replace the SDK's identity section with the agent's SOUL + instructions.
+        // Keeps all other sections (tool_instructions, safety, environment, etc.) intact.
+        // custom_instructions remains available for per-repo .github/copilot-instructions.md.
         const identity = this.loadIdentity();
         if (identity) {
-          config.systemMessage = { mode: 'append', content: identity };
+          config.systemMessage = {
+            mode: 'customize',
+            sections: {
+              identity: { action: 'replace', content: identity },
+            },
+          };
         }
 
         if (this.extensionLoader) {
