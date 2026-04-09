@@ -20,24 +20,23 @@ export class ViewDiscovery {
     this.mindPath = mindPath;
     this.views = [];
 
-    const searchDirs = [
-      path.join(mindPath, '.github', 'lens'),
-    ];
+    const lensDir = path.join(mindPath, '.github', 'lens');
 
-    for (const dir of searchDirs) {
-      if (!fs.existsSync(dir)) continue;
+    // Seed default hello-world view if .github/lens/ is empty or missing
+    this.seedDefaults(lensDir);
 
-      const entries = fs.readdirSync(dir, { withFileTypes: true });
+    if (fs.existsSync(lensDir)) {
+      const entries = fs.readdirSync(lensDir, { withFileTypes: true });
       for (const entry of entries) {
         if (!entry.isDirectory()) continue;
-        const viewJsonPath = path.join(dir, entry.name, 'view.json');
+        const viewJsonPath = path.join(lensDir, entry.name, 'view.json');
         if (!fs.existsSync(viewJsonPath)) continue;
 
         try {
           const raw = fs.readFileSync(viewJsonPath, 'utf-8');
           const manifest = JSON.parse(raw) as LensViewManifest;
           manifest.id = entry.name;
-          manifest._basePath = path.join(dir, entry.name);
+          manifest._basePath = path.join(lensDir, entry.name);
           this.views.push(manifest);
           console.log(`[ViewDiscovery] Found view: ${manifest.name} (${entry.name})`);
         } catch (err) {
@@ -87,15 +86,42 @@ export class ViewDiscovery {
     }
   }
 
+  private seedDefaults(lensDir: string): void {
+    const helloDir = path.join(lensDir, 'hello-world');
+    const helloViewJson = path.join(helloDir, 'view.json');
+
+    if (fs.existsSync(helloViewJson)) return;
+
+    console.log('[ViewDiscovery] Seeding default hello-world view');
+    fs.mkdirSync(helloDir, { recursive: true });
+    fs.writeFileSync(helloViewJson, JSON.stringify({
+      name: 'Hello World',
+      icon: 'zap',
+      view: 'form',
+      source: 'data.json',
+      prompt: 'Report your current status including: your agent name, the mind directory name, how many files are in inbox/, how many initiatives exist, how many domains exist, and what extensions are loaded. Write the result as a flat JSON object to the path specified below.',
+      refreshOn: 'click',
+      schema: {
+        properties: {
+          agent: { type: 'string', title: 'Agent' },
+          mind: { type: 'string', title: 'Mind' },
+          inbox_count: { type: 'number', title: 'Inbox Items' },
+          initiatives: { type: 'number', title: 'Initiatives' },
+          domains: { type: 'number', title: 'Domains' },
+          extensions: { type: 'string', title: 'Extensions' },
+          status: { type: 'string', title: 'Status' },
+        },
+      },
+    }, null, 2));
+  }
+
   startWatching(onChanged: () => void): void {
     this.stopWatching();
     if (!this.mindPath) return;
 
-    const searchDirs = [
-      path.join(this.mindPath, '.github', 'lens'),
-    ];
+    const lensDir = path.join(this.mindPath, '.github', 'lens');
 
-    for (const dir of searchDirs) {
+    for (const dir of [lensDir]) {
       if (!fs.existsSync(dir)) continue;
       try {
         const watcher = fs.watch(dir, { recursive: true }, (eventType, filename) => {
