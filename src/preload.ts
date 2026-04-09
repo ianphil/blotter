@@ -19,6 +19,13 @@ const electronAPI: ElectronAPI = {
     setMindPath: (mindPath) => ipcRenderer.invoke('agent:setMindPath', mindPath),
     onStatusChanged: (callback) => createIpcListener(ipcRenderer, 'agent:statusChanged', callback),
   },
+  lens: {
+    getViews: () => ipcRenderer.invoke('lens:getViews'),
+    getViewData: (viewId: string) => ipcRenderer.invoke('lens:getViewData', viewId),
+    refreshView: (viewId: string) => ipcRenderer.invoke('lens:refreshView', viewId),
+    onViewsChanged: (callback: (views: import('./shared/types').LensViewManifest[]) => void) =>
+      createIpcListener(ipcRenderer, 'lens:viewsChanged', callback),
+  },
   config: {
     load: () => ipcRenderer.invoke('config:load'),
     save: (config) => ipcRenderer.invoke('config:save', config),

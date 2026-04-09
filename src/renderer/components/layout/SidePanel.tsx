@@ -1,7 +1,6 @@
 import React from 'react';
 import { useAppState, useAppDispatch } from '../../lib/store';
 import { useAgentStatus } from '../../hooks/useAgentStatus';
-import type { LensView } from '../../lib/store';
 import { cn } from '../../lib/utils';
 
 function ChatSideContent() {
@@ -24,50 +23,38 @@ function ChatSideContent() {
   );
 }
 
-function HelloSideContent() {
-  const { agentStatus, availableModels, selectedModel } = useAppState();
+function LensViewSideContent() {
+  const { activeView, discoveredViews } = useAppState();
+  const view = discoveredViews.find(v => v.id === activeView);
+  if (!view) return null;
 
   return (
     <div className="px-3 py-3 space-y-3">
       <div>
-        <p className="text-xs font-medium text-muted-foreground mb-1">Mind Path</p>
-        <p className="text-xs truncate" title={agentStatus.mindPath ?? ''}>
-          {agentStatus.mindPath?.split(/[\\/]/).pop() ?? 'None'}
-        </p>
+        <p className="text-xs font-medium text-muted-foreground mb-1">View</p>
+        <p className="text-sm font-medium">{view.name}</p>
       </div>
-      {agentStatus.extensions.length > 0 && (
+      <div>
+        <p className="text-xs font-medium text-muted-foreground mb-1">Type</p>
+        <p className="text-xs">{view.view}</p>
+      </div>
+      {view.prompt && (
         <div>
-          <p className="text-xs font-medium text-muted-foreground mb-1">
-            Extensions ({agentStatus.extensions.length})
-          </p>
-          {agentStatus.extensions.map((ext) => (
-            <p key={ext} className="text-xs truncate">{ext}</p>
-          ))}
-        </div>
-      )}
-      {selectedModel && (
-        <div>
-          <p className="text-xs font-medium text-muted-foreground mb-1">Model</p>
-          <p className="text-xs">{availableModels.find(m => m.id === selectedModel)?.name ?? selectedModel}</p>
+          <p className="text-xs font-medium text-muted-foreground mb-1">Prompt</p>
+          <p className="text-xs text-muted-foreground leading-relaxed">{view.prompt}</p>
         </div>
       )}
     </div>
   );
 }
 
-const sideContent: Record<LensView, React.FC> = {
-  chat: ChatSideContent,
-  hello: HelloSideContent,
-};
-
 export function SidePanel() {
   const { agentStatus, activeView } = useAppState();
   const { selectMindDirectory } = useAgentStatus();
-  const Content = sideContent[activeView] ?? sideContent.chat;
 
   return (
     <aside className="w-56 border-r border-border flex flex-col bg-card shrink-0">
-      {/* Header: logo + status — always visible */}
+      {/* Header: logo + status */}
       <div className="px-4 py-4 border-b border-border">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-genesis flex items-center justify-center text-sm font-bold text-primary-foreground">
@@ -97,12 +84,12 @@ export function SidePanel() {
         )}
       </div>
 
-      {/* Middle: contextual content — scrollable */}
+      {/* Middle: contextual content */}
       <div className="flex-1 min-h-0 overflow-y-auto">
-        <Content />
+        {activeView === 'chat' ? <ChatSideContent /> : <LensViewSideContent />}
       </div>
 
-      {/* Footer: mind selector — always visible */}
+      {/* Footer: mind selector */}
       <div className="px-3 py-3 border-t border-border">
         <button
           onClick={selectMindDirectory}

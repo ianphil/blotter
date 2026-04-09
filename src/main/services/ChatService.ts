@@ -244,6 +244,30 @@ export class ChatService {
     }
   }
 
+  async sendBackgroundPrompt(prompt: string): Promise<void> {
+    const bgConversationId = `bg-${Date.now()}`;
+    try {
+      const session = await this.getOrCreateSession(bgConversationId);
+      await session.send({ prompt });
+
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(resolve, 120_000);
+        const unsubIdle = session.on('session.idle', () => {
+          clearTimeout(timeout);
+          unsubIdle();
+          resolve();
+        });
+        const unsubError = session.on('session.error', (event) => {
+          clearTimeout(timeout);
+          unsubError();
+          reject(new Error(event.data.message));
+        });
+      });
+    } finally {
+      await this.destroySession(bgConversationId);
+    }
+  }
+
   async listModels(): Promise<ModelInfo[]> {
     try {
       const client = await getSharedClient();

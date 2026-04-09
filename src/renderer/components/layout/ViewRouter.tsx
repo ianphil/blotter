@@ -1,19 +1,20 @@
 import React from 'react';
-import type { LensView } from '../../lib/store';
+import { useAppState } from '../../lib/store';
 import { ChatPanel } from '../chat/ChatPanel';
-import { HelloWorldView } from '../views/HelloWorldView';
+import { LensViewRenderer } from '../views/LensViewRenderer';
 
-interface Props {
-  activeView: LensView;
-}
+export function ViewRouter() {
+  const { activeView, discoveredViews } = useAppState();
 
-export function ViewRouter({ activeView }: Props) {
-  switch (activeView) {
-    case 'chat':
-      return <ChatPanel />;
-    case 'hello':
-      return <HelloWorldView />;
-    default:
-      return <ChatPanel />;
+  if (activeView === 'chat') {
+    return <ChatPanel />;
   }
+
+  const view = discoveredViews.find(v => v.id === activeView);
+  if (view) {
+    return <LensViewRenderer key={view.id} view={view} />;
+  }
+
+  // Fallback to chat if view not found
+  return <ChatPanel />;
 }

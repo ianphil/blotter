@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, type Dispatch } from 'react';
-import type { ChatMessage, ChatEvent, AgentStatus, ModelInfo, ContentBlock } from '../../shared/types';
+import type { ChatMessage, ChatEvent, AgentStatus, ModelInfo, LensViewManifest, ContentBlock } from '../../shared/types';
 
-export type LensView = 'chat' | 'hello';
+export type LensView = 'chat' | string;
 
 interface AppState {
   messages: ChatMessage[];
@@ -11,6 +11,7 @@ interface AppState {
   availableModels: ModelInfo[];
   selectedModel: string | null;
   activeView: LensView;
+  discoveredViews: LensViewManifest[];
 }
 
 type AppAction =
@@ -21,6 +22,7 @@ type AppAction =
   | { type: 'SET_AVAILABLE_MODELS'; payload: ModelInfo[] }
   | { type: 'SET_SELECTED_MODEL'; payload: string | null }
   | { type: 'SET_ACTIVE_VIEW'; payload: LensView }
+  | { type: 'SET_DISCOVERED_VIEWS'; payload: LensViewManifest[] }
   | { type: 'CLEAR_MESSAGES' }
   | { type: 'NEW_CONVERSATION' };
 
@@ -39,6 +41,7 @@ const initialState: AppState = {
   availableModels: [],
   selectedModel: localStorage.getItem('genesis-ui:selectedModel'),
   activeView: 'chat',
+  discoveredViews: [],
 };
 
 /** Extract plain text from content blocks (for search, accessibility, etc.) */
@@ -200,6 +203,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
 
     case 'SET_ACTIVE_VIEW':
       return { ...state, activeView: action.payload };
+
+    case 'SET_DISCOVERED_VIEWS':
+      return { ...state, discoveredViews: action.payload };
 
     case 'CLEAR_MESSAGES':
       return { ...state, messages: [] };

@@ -75,6 +75,19 @@ export interface AppConfig {
   theme: 'light' | 'dark' | 'system';
 }
 
+export interface LensViewManifest {
+  id: string;
+  name: string;
+  icon: string;
+  view: 'form' | 'table' | 'briefing' | 'status-board' | 'list' | 'monitor';
+  source: string;
+  schema?: Record<string, unknown>;
+  prompt?: string;
+  refreshOn?: 'click' | 'interval';
+  /** Resolved absolute path to the view.json directory */
+  _basePath?: string;
+}
+
 export interface ElectronAPI {
   chat: {
     send: (conversationId: string, message: string, messageId: string, model?: string) => Promise<void>;
@@ -88,6 +101,12 @@ export interface ElectronAPI {
     selectMindDirectory: () => Promise<string | null>;
     setMindPath: (mindPath: string) => Promise<void>;
     onStatusChanged: (callback: (status: AgentStatus) => void) => () => void;
+  };
+  lens: {
+    getViews: () => Promise<LensViewManifest[]>;
+    getViewData: (viewId: string) => Promise<Record<string, unknown> | null>;
+    refreshView: (viewId: string) => Promise<Record<string, unknown> | null>;
+    onViewsChanged: (callback: (views: LensViewManifest[]) => void) => () => void;
   };
   config: {
     load: () => Promise<AppConfig>;

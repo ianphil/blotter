@@ -1,5 +1,4 @@
 import React from 'react';
-import { useAppState } from '../../lib/store';
 import { useAgentStatus } from '../../hooks/useAgentStatus';
 import { useAppSubscriptions } from '../../hooks/useAppSubscriptions';
 import { TooltipProvider } from '../ui/tooltip';
@@ -8,7 +7,6 @@ import { SidePanel } from './SidePanel';
 import { ViewRouter } from './ViewRouter';
 
 export function AppShell() {
-  const { activeView } = useAppState();
   useAgentStatus();
   useAppSubscriptions();
 
@@ -23,7 +21,7 @@ export function AppShell() {
           <ActivityBar />
           <SidePanel />
           <main className="flex-1 flex flex-col min-w-0">
-            <ViewRouter activeView={activeView} />
+            <ViewRouter />
           </main>
         </div>
       </div>

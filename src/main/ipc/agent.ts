@@ -4,6 +4,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { ChatService } from '../services/ChatService';
+import { ViewDiscovery } from '../services/ViewDiscovery';
 import type { AgentStatus, AppConfig } from '../../shared/types';
 
 const CONFIG_DIR = path.join(os.homedir(), '.genesis-ui');
@@ -23,7 +24,7 @@ function saveConfig(config: AppConfig): void {
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
 }
 
-export function setupAgentIPC(chatService: ChatService): void {
+export function setupAgentIPC(chatService: ChatService, viewDiscovery: ViewDiscovery): void {
   ipcMain.handle('agent:getStatus', async (): Promise<AgentStatus> => {
     const mindPath = chatService.getMindPath();
     const loader = chatService.getExtensionLoader();
@@ -62,6 +63,15 @@ export function setupAgentIPC(chatService: ChatService): void {
     config.mindPath = selected;
     saveConfig(config);
 
+    // Scan for Lens views and start watching
+    const views = await viewDiscovery.scan(selected);
+    viewDiscovery.startWatching(() => {
+      const win2 = BrowserWindow.getAllWindows()[0];
+      if (win2) {
+        win2.webContents.send('lens:viewsChanged', viewDiscovery.getViews());
+      }
+    });
+
     return selected;
   });
 
@@ -82,9 +92,19 @@ export function setupAgentIPC(chatService: ChatService): void {
 }
 
 /** Restore persisted mind path on startup */
-export function restoreConfig(chatService: ChatService): void {
+export function restoreConfig(chatService: ChatService, viewDiscovery?: ViewDiscovery): void {
   const config = loadConfig();
   if (config.mindPath && fs.existsSync(config.mindPath)) {
     chatService.setMindPath(config.mindPath);
+    if (viewDiscovery) {
+      viewDiscovery.scan(config.mindPath).then(() => {
+        viewDiscovery.startWatching(() => {
+          const win = BrowserWindow.getAllWindows()[0];
+          if (win) {
+            win.webContents.send('lens:viewsChanged', viewDiscovery.getViews());
+          }
+        });
+      });
+    }
   }
 }

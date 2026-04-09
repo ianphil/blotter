@@ -9,6 +9,7 @@ export function useAppSubscriptions() {
   const { agentStatus } = useAppState();
   const dispatch = useAppDispatch();
   const modelsLoaded = useRef(false);
+  const viewsLoaded = useRef(false);
 
   // Chat event listener — must stay alive regardless of active view
   useEffect(() => {
@@ -18,29 +19,53 @@ export function useAppSubscriptions() {
     return () => { unsub(); };
   }, [dispatch]);
 
+  // Listen for view discovery changes (file watcher)
+  useEffect(() => {
+    const unsub = window.electronAPI.lens.onViewsChanged((views) => {
+      dispatch({ type: 'SET_DISCOVERED_VIEWS', payload: views });
+    });
+    return () => { unsub(); };
+  }, [dispatch]);
+
   // Fetch models when agent connects
   useEffect(() => {
     if (!agentStatus.connected) {
       modelsLoaded.current = false;
+      viewsLoaded.current = false;
       return;
     }
-    if (modelsLoaded.current) return;
 
-    const loadModels = async () => {
-      try {
-        const models = await window.electronAPI.chat.listModels();
-        dispatch({ type: 'SET_AVAILABLE_MODELS', payload: models });
-        modelsLoaded.current = true;
+    if (!modelsLoaded.current) {
+      const loadModels = async () => {
+        try {
+          const models = await window.electronAPI.chat.listModels();
+          dispatch({ type: 'SET_AVAILABLE_MODELS', payload: models });
+          modelsLoaded.current = true;
 
-        const persisted = localStorage.getItem('genesis-ui:selectedModel');
-        const valid = persisted && models.some(m => m.id === persisted);
-        if (!valid && models.length > 0) {
-          dispatch({ type: 'SET_SELECTED_MODEL', payload: models[0].id });
+          const persisted = localStorage.getItem('genesis-ui:selectedModel');
+          const valid = persisted && models.some(m => m.id === persisted);
+          if (!valid && models.length > 0) {
+            dispatch({ type: 'SET_SELECTED_MODEL', payload: models[0].id });
+          }
+        } catch (err) {
+          console.error('Failed to load models:', err);
         }
-      } catch (err) {
-        console.error('Failed to load models:', err);
-      }
-    };
-    loadModels();
+      };
+      loadModels();
+    }
+
+    // Fetch discovered Lens views
+    if (!viewsLoaded.current) {
+      const loadViews = async () => {
+        try {
+          const views = await window.electronAPI.lens.getViews();
+          dispatch({ type: 'SET_DISCOVERED_VIEWS', payload: views });
+          viewsLoaded.current = true;
+        } catch (err) {
+          console.error('Failed to load views:', err);
+        }
+      };
+      loadViews();
+    }
   }, [agentStatus.connected, dispatch]);
 }

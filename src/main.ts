@@ -8,7 +8,9 @@ import { loadCronExtension } from './main/services/adapters/cron';
 import { loadIdeaExtension } from './main/services/adapters/idea';
 import { setupChatIPC } from './main/ipc/chat';
 import { setupAgentIPC, restoreConfig } from './main/ipc/agent';
+import { setupLensIPC } from './main/ipc/lens';
 import { stopSharedClient } from './main/services/SdkLoader';
+import { ViewDiscovery } from './main/services/ViewDiscovery';
 
 if (started) {
   app.quit();
@@ -16,6 +18,7 @@ if (started) {
 
 const chatService = new ChatService();
 const extensionLoader = new ExtensionLoader();
+const viewDiscovery = new ViewDiscovery(chatService);
 extensionLoader.registerAdapter('canvas', loadCanvasExtension);
 extensionLoader.registerAdapter('cron', loadCronExtension);
 extensionLoader.registerAdapter('idea', loadIdeaExtension);
@@ -59,9 +62,10 @@ const createWindow = () => {
 };
 
 app.on('ready', () => {
-  restoreConfig(chatService);
+  restoreConfig(chatService, viewDiscovery);
   setupChatIPC(chatService);
-  setupAgentIPC(chatService);
+  setupAgentIPC(chatService, viewDiscovery);
+  setupLensIPC(viewDiscovery);
 
   // Window control IPC — registered once, not per-window
   ipcMain.on('window:minimize', () => mainWindow?.minimize());
