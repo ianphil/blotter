@@ -10,6 +10,7 @@ import { setupChatIPC } from './main/ipc/chat';
 import { setupAgentIPC, restoreConfig } from './main/ipc/agent';
 import { setupLensIPC } from './main/ipc/lens';
 import { setupGenesisIPC } from './main/ipc/genesis';
+import { setupAuthIPC } from './main/ipc/auth';
 import { stopSharedClient } from './main/services/SdkLoader';
 import { ViewDiscovery } from './main/services/ViewDiscovery';
 
@@ -68,6 +69,7 @@ app.on('ready', () => {
   setupAgentIPC(chatService, viewDiscovery);
   setupLensIPC(viewDiscovery);
   setupGenesisIPC(chatService, viewDiscovery);
+  setupAuthIPC();
 
   // Window control IPC — registered once, not per-window
   ipcMain.on('window:minimize', () => mainWindow?.minimize());

@@ -110,6 +110,11 @@ export interface ElectronAPI {
     sendAction: (viewId: string, action: string) => Promise<Record<string, unknown> | null>;
     onViewsChanged: (callback: (views: LensViewManifest[]) => void) => () => void;
   };
+  auth: {
+    getStatus: () => Promise<{ authenticated: boolean; login?: string }>;
+    startLogin: () => Promise<{ success: boolean; login?: string }>;
+    onProgress: (callback: (progress: { step: string; userCode?: string; verificationUri?: string; login?: string; error?: string }) => void) => () => void;
+  };
   genesis: {
     getDefaultPath: () => Promise<string>;
     pickPath: () => Promise<string | null>;

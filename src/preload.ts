@@ -27,6 +27,12 @@ const electronAPI: ElectronAPI = {
     onViewsChanged: (callback: (views: import('./shared/types').LensViewManifest[]) => void) =>
       createIpcListener(ipcRenderer, 'lens:viewsChanged', callback),
   },
+  auth: {
+    getStatus: () => ipcRenderer.invoke('auth:getStatus'),
+    startLogin: () => ipcRenderer.invoke('auth:startLogin'),
+    onProgress: (callback: (progress: { step: string; userCode?: string; verificationUri?: string; login?: string; error?: string }) => void) =>
+      createIpcListener(ipcRenderer, 'auth:progress', callback),
+  },
   genesis: {
     getDefaultPath: () => ipcRenderer.invoke('genesis:getDefaultPath'),
     pickPath: () => ipcRenderer.invoke('genesis:pickPath'),
