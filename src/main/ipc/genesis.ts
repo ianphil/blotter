@@ -59,6 +59,9 @@ export function setupGenesisIPC(
       return { success: true, mindPath };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      if (win) {
+        win.webContents.send('genesis:progress', { step: 'error', detail: message });
+      }
       return { success: false, error: message };
     }
   });

@@ -4,11 +4,13 @@ interface Props {
   name: string;
   role: string;
   onComplete: () => void;
+  onError?: (error: string) => void;
 }
 
-export function BootScreen({ name, role, onComplete }: Props) {
+export function BootScreen({ name, role, onComplete, onError }: Props) {
   const [lines, setLines] = useState<string[]>([]);
   const [progress, setProgress] = useState(0); // 0 to 100
+  const [failed, setFailed] = useState(false);
   const completeRef = useRef(false);
 
   // Show initial boot lines
@@ -51,6 +53,12 @@ export function BootScreen({ name, role, onComplete }: Props) {
         setLines(prev => [...prev, '> inbox: ready', '> domains: empty — awaiting first briefing']);
         setProgress(90);
       }
+      if (prog.step === 'error') {
+        setLines(prev => [...prev, '>', `> ERROR: ${prog.detail}`, '> genesis failed.']);
+        setFailed(true);
+        completeRef.current = true;
+        onError?.(prog.detail);
+      }
       if (prog.step === 'complete') {
         setLines(prev => [...prev, '>', '> genesis complete.']);
         setProgress(100);
@@ -69,7 +77,12 @@ export function BootScreen({ name, role, onComplete }: Props) {
         {lines.map((line, i) => (
           <div
             key={i}
-            className={line === '> genesis complete.' ? 'text-green-400 font-bold mt-2' : ''}
+            className={
+              line === '> genesis complete.' ? 'text-green-400 font-bold mt-2' :
+              line.startsWith('> ERROR:') ? 'text-red-400 mt-2' :
+              line === '> genesis failed.' ? 'text-red-500 font-bold' :
+              ''
+            }
           >
             {line}
           </div>
@@ -79,9 +92,11 @@ export function BootScreen({ name, role, onComplete }: Props) {
         )}
       </div>
 
-      {/* Spinner */}
+      {/* Spinner or error hint */}
       <div className="absolute bottom-12 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3">
-        {progress < 100 ? (
+        {failed ? (
+          <p className="text-xs text-red-400/70 font-mono">check credentials and restart Chamber</p>
+        ) : progress < 100 ? (
           <>
             <div className="w-6 h-6 border-2 border-green-500/30 border-t-green-500 rounded-full animate-spin" />
             <p className="text-xs text-green-500/50 font-mono">creating your agent...</p>

@@ -2,11 +2,12 @@
 // Stores token where copilot CLI expects it — one login, everything works.
 
 import * as https from 'https';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 
-const CLIENT_ID = 'Iv1.b507a08c87ecfe98';
+const CLIENT_ID = 'Ov23ctDVkRmgkPke0Mmm';
 const DEVICE_CODE_URL = 'https://github.com/login/device/code';
 const ACCESS_TOKEN_URL = 'https://github.com/login/oauth/access_token';
+const AUTH_SCOPE = 'read:user,read:org,repo,gist';
 const CREDENTIAL_TARGET_PREFIX = 'copilot-cli/https://github.com';
 
 export interface AuthProgress {
@@ -89,7 +90,9 @@ export class AuthService {
   /** Check if a copilot credential exists in Windows Credential Manager */
   getStoredCredential(): { login: string } | null {
     try {
-      const output = execSync(`cmdkey /list:${CREDENTIAL_TARGET_PREFIX}*`, { encoding: 'utf-8' });
+      const output = execFileSync('cmdkey', [
+        `/list:${CREDENTIAL_TARGET_PREFIX}*`,
+      ], { encoding: 'utf-8' });
       const match = output.match(/Target:\s+copilot-cli\/https:\/\/github\.com:(\S+)/);
       if (match) {
         return { login: match[1] };
@@ -98,12 +101,18 @@ export class AuthService {
     return null;
   }
 
-  /** Store token in Windows Credential Manager where copilot CLI expects it */
+  /** Store token in Windows Credential Manager where copilot CLI expects it.
+   *  Uses execFileSync to bypass cmd.exe shell interpretation — tokens with
+   *  special characters (%, ^, &, !) would be mangled by execSync. */
   private storeCredential(login: string, token: string): void {
     const target = `${CREDENTIAL_TARGET_PREFIX}:${login}`;
     const user = `https://github.com:${login}`;
     try {
-      execSync(`cmdkey /generic:${target} /user:${user} /pass:${token}`, { stdio: 'ignore' });
+      execFileSync('cmdkey', [
+        `/generic:${target}`,
+        `/user:${user}`,
+        `/pass:${token}`,
+      ], { stdio: 'ignore' });
       console.log(`[Auth] Stored credential for ${login}`);
     } catch (err) {
       console.error('[Auth] Failed to store credential:', err);
@@ -117,7 +126,7 @@ export class AuthService {
       // 1. Start device flow
       const deviceResp = await postJson(DEVICE_CODE_URL, {
         client_id: CLIENT_ID,
-        scope: 'read:user',
+        scope: AUTH_SCOPE,
       });
 
       const userCode = String(deviceResp.user_code);
