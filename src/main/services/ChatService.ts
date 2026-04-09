@@ -4,6 +4,8 @@
 import { getSharedClient } from './SdkLoader';
 import type { ExtensionLoader } from './ExtensionLoader';
 import type { ChatEvent, ModelInfo } from '../../shared/types';
+import * as fs from 'fs';
+import * as path from 'path';
 
 type CopilotSessionType = import('@github/copilot-sdk').CopilotSession;
 
@@ -29,6 +31,27 @@ export class ChatService {
     return this.extensionLoader;
   }
 
+  /** Discover the agent file in .github/agents/ and return its slug name */
+  private discoverAgent(): { name: string; prompt: string } | null {
+    if (!this.mindPath) return null;
+    const agentDir = path.join(this.mindPath, '.github', 'agents');
+    if (!fs.existsSync(agentDir)) return null;
+
+    try {
+      const files = fs.readdirSync(agentDir).filter(f => f.endsWith('.agent.md'));
+      if (files.length === 0) return null;
+
+      const agentFile = files[0];
+      const name = agentFile.replace('.agent.md', '');
+      const prompt = fs.readFileSync(path.join(agentDir, agentFile), 'utf-8');
+      console.log(`[ChatService] Discovered agent: ${name}`);
+      return { name, prompt };
+    } catch (err) {
+      console.error('[ChatService] Failed to discover agent:', err);
+      return null;
+    }
+  }
+
   private async getOrCreateSession(conversationId: string, model?: string): Promise<CopilotSessionType> {
     let session = this.sessions.get(conversationId);
     if (!session) {
@@ -47,6 +70,13 @@ export class ChatService {
 
       if (this.mindPath) {
         config.workingDirectory = this.mindPath;
+
+        // Discover and activate the agent from .github/agents/
+        const agent = this.discoverAgent();
+        if (agent) {
+          config.customAgents = [{ name: agent.name, prompt: agent.prompt }];
+          config.agent = agent.name;
+        }
 
         if (this.extensionLoader) {
           try {
