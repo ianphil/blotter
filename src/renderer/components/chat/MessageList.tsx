@@ -4,7 +4,8 @@ import { StreamingMessage } from './StreamingMessage';
 import { cn, formatTime } from '../../lib/utils';
 
 export function MessageList() {
-  const { messages } = useAppState();
+  const { messages, agentStatus } = useAppState();
+  const agentName = agentStatus.agentName ?? 'Agent';
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAutoScrolling = useRef(true);
 
@@ -37,14 +38,14 @@ export function MessageList() {
                 ? 'bg-secondary text-secondary-foreground'
                 : 'bg-genesis text-primary-foreground'
             )}>
-              {message.role === 'user' ? 'Y' : 'G'}
+              {message.role === 'user' ? 'Y' : agentName.charAt(0).toUpperCase()}
             </div>
 
             {/* Content */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
                 <span className="text-sm font-medium">
-                  {message.role === 'user' ? 'You' : 'Blotter'}
+                  {message.role === 'user' ? 'You' : agentName}
                 </span>
                 <span className="text-xs text-muted-foreground">
                   {formatTime(message.timestamp)}

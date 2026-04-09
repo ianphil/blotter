@@ -59,6 +59,7 @@ export interface ChatMessage {
 export interface AgentStatus {
   connected: boolean;
   mindPath: string | null;
+  agentName: string | null;
   sessionActive: boolean;
   uptime: number | null;
   error: string | null;

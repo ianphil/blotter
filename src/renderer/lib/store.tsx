@@ -33,6 +33,7 @@ const initialState: AppState = {
   agentStatus: {
     connected: false,
     mindPath: null,
+    agentName: null,
     sessionActive: false,
     uptime: null,
     error: null,

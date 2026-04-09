@@ -28,9 +28,26 @@ export function setupAgentIPC(chatService: ChatService, viewDiscovery: ViewDisco
   ipcMain.handle('agent:getStatus', async (): Promise<AgentStatus> => {
     const mindPath = chatService.getMindPath();
     const loader = chatService.getExtensionLoader();
+    let agentName: string | null = null;
+
+    if (mindPath) {
+      try {
+        const soulPath = path.join(mindPath, 'SOUL.md');
+        if (fs.existsSync(soulPath)) {
+          const soul = fs.readFileSync(soulPath, 'utf-8');
+          const match = soul.match(/^#\s+(.+)/m);
+          if (match) agentName = match[1].trim();
+        }
+      } catch { /* ignore */ }
+      if (!agentName) {
+        agentName = mindPath.split(/[\\/]/).pop() ?? null;
+      }
+    }
+
     return {
       connected: mindPath !== null,
       mindPath,
+      agentName,
       sessionActive: mindPath !== null,
       uptime: null,
       error: null,
