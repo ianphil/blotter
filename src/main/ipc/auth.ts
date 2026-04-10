@@ -2,8 +2,7 @@
 import { ipcMain, BrowserWindow, shell } from 'electron';
 import { AuthService } from '../services/AuthService';
 
-export function setupAuthIPC(): void {
-  const authService = new AuthService();
+export function setupAuthIPC(authService: AuthService): void {
 
   ipcMain.handle('auth:getStatus', async () => {
     const cred = await authService.getStoredCredential();

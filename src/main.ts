@@ -5,6 +5,8 @@ import started from 'electron-squirrel-startup';
 import { ChatService } from './main/services/ChatService';
 import { ExtensionLoader } from './main/services/ExtensionLoader';
 import { ConfigService } from './main/services/ConfigService';
+import { AuthService } from './main/services/AuthService';
+import { MindScaffold } from './main/services/MindScaffold';
 import { loadCanvasExtension } from './main/services/adapters/canvas';
 import { loadCronExtension } from './main/services/adapters/cron';
 import { loadIdeaExtension } from './main/services/adapters/idea';
@@ -24,6 +26,8 @@ const chatService = new ChatService();
 const extensionLoader = new ExtensionLoader();
 const viewDiscovery = new ViewDiscovery(chatService);
 const configService = new ConfigService();
+const authService = new AuthService();
+const scaffold = new MindScaffold();
 extensionLoader.registerAdapter('canvas', loadCanvasExtension);
 extensionLoader.registerAdapter('cron', loadCronExtension);
 extensionLoader.registerAdapter('idea', loadIdeaExtension);
@@ -82,8 +86,8 @@ app.on('ready', () => {
   setupChatIPC(chatService);
   setupAgentIPC(chatService, viewDiscovery, configService);
   setupLensIPC(viewDiscovery);
-  setupGenesisIPC(chatService, viewDiscovery, configService);
-  setupAuthIPC();
+  setupGenesisIPC(chatService, viewDiscovery, configService, scaffold);
+  setupAuthIPC(authService);
 
   // Window control IPC — registered once, not per-window
   ipcMain.on('window:minimize', () => mainWindow?.minimize());

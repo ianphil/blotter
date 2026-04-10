@@ -9,8 +9,8 @@ export function setupGenesisIPC(
   chatService: ChatService,
   viewDiscovery: ViewDiscovery,
   configService: ConfigService,
+  scaffold: MindScaffold,
 ): void {
-  const scaffold = new MindScaffold();
 
   ipcMain.handle('genesis:getDefaultPath', async () => {
     return MindScaffold.getDefaultBasePath();
