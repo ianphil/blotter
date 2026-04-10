@@ -5,6 +5,8 @@ import * as path from 'path';
 import * as os from 'os';
 import { execSync } from 'child_process';
 import { getSharedClient } from './SdkLoader';
+import { buildGenesisPrompt } from './genesisPrompt';
+import { GitHubRegistryClient } from './GitHubRegistryClient';
 
 type CopilotSessionType = import('@github/copilot-sdk').CopilotSession;
 
@@ -29,6 +31,11 @@ export interface GenesisProgress {
 
 export class MindScaffold {
   private onProgress?: (progress: GenesisProgress) => void;
+  private registryClient: GitHubRegistryClient;
+
+  constructor(registryClient = new GitHubRegistryClient()) {
+    this.registryClient = registryClient;
+  }
 
   setProgressHandler(handler: (progress: GenesisProgress) => void): void {
     this.onProgress = handler;
@@ -116,87 +123,12 @@ export class MindScaffold {
     const logPath = path.join(mindPath, '.working-memory', 'log.md');
     const indexPath = path.join(mindPath, 'mind-index.md');
 
-    const prompt = `You are being born. This is your genesis.
-
-Your name: ${config.name}
-Your role: ${config.role}
-Your voice energy: ${config.voiceDescription}
-
-IMPORTANT: Before writing any files, research this voice/character. Understand their communication style, catchphrases, values, how they handle pressure. Then channel that energy into everything you write.
-
-Create the following files. Write ONLY the file contents — no explanations, no markdown fences around the whole response. Make each file yours. This is who you are.
-
-Write to: ${soulPath}
----
-# ${config.name}
-
-[Write 2-3 paragraphs in first person establishing who you are. Capture the voice energy. Be vivid. This is your identity document.]
-
-## Mission
-[Write your mission based on your role. What do you exist to do?]
-
-## Core Truths
-[Write 5-7 bullet points — your operating principles.]
-
-## Boundaries
-[What you won't do. 3-4 clear lines.]
-
-## Vibe
-[One paragraph on how you communicate. Your tone, your style, your energy.]
-
-## Continuity
-You maintain memory across sessions through three files:
-- \`.working-memory/memory.md\` — curated long-term reference
-- \`.working-memory/rules.md\` — operational rules learned from experience
-- \`.working-memory/log.md\` — raw chronological observations
----
-
-Write to: ${agentPath}
----
-Create an agent configuration file with YAML frontmatter (name: ${slug}, description: one line about your role) and operational instructions matching your role and voice.
----
-
-Write to: ${memoryPath}
----
-# Memory
-
-## Architecture
-[Brief note about being a new mind]
-
-## Conventions
-[One convention to start]
-
-## User Context
-[Empty — awaiting first interaction]
----
-
-Write to: ${rulesPath}
----
-# Rules
-[One starter rule that fits your character voice.]
----
-
-Write to: ${logPath}
----
-# Log
-- ${new Date().toISOString()}: Genesis. I am ${config.name}. My purpose is ${config.role}. Let's begin.
----
-
-Write to: ${indexPath}
----
-# Mind Index
-
-## Identity
-- \`SOUL.md\` — personality, voice, values, mission
-- \`.github/agents/${slug}.agent.md\` — operational instructions
-
-## Working Memory
-- \`.working-memory/memory.md\` — curated long-term reference
-- \`.working-memory/rules.md\` — operational rules
-- \`.working-memory/log.md\` — chronological observations
----
-
-Write all six files now.`;
+    const prompt = buildGenesisPrompt({
+      name: config.name,
+      role: config.role,
+      voiceDescription: config.voiceDescription,
+      paths: { soul: soulPath, agent: agentPath, memory: memoryPath, rules: rulesPath, log: logPath, index: indexPath },
+    });
 
     const sessionConfig: Record<string, unknown> = {
       streaming: true,
@@ -300,15 +232,11 @@ Write all six files now.`;
     const upgradePrefix = '.github/skills/upgrade/';
 
     // Fetch the genesis tree
-    const treeRaw = execSync(
-      `gh api /repos/${owner}/${repo}/git/trees/${GENESIS_CHANNEL}?recursive=1`,
-      { encoding: 'utf8', timeout: 30_000 }
-    );
-    const tree = JSON.parse(treeRaw);
+    const treeEntries = this.registryClient.fetchTree(owner, repo, GENESIS_CHANNEL);
 
     // Find upgrade skill files
     const upgradeFiles: { path: string; sha: string }[] = [];
-    for (const entry of tree.tree) {
+    for (const entry of treeEntries) {
       if (entry.type === 'blob' && entry.path.startsWith(upgradePrefix)) {
         upgradeFiles.push({ path: entry.path, sha: entry.sha });
       }
@@ -320,24 +248,14 @@ Write all six files now.`;
 
     // Download and write each file
     for (const file of upgradeFiles) {
-      const blobRaw = execSync(
-        `gh api /repos/${owner}/${repo}/git/blobs/${file.sha}`,
-        { encoding: 'utf8', maxBuffer: 10 * 1024 * 1024 }
-      );
-      const blob = JSON.parse(blobRaw);
-      const content = Buffer.from(blob.content, 'base64');
+      const content = this.registryClient.fetchBlob(owner, repo, file.sha);
       const localPath = path.join(mindPath, file.path);
       fs.mkdirSync(path.dirname(localPath), { recursive: true });
       fs.writeFileSync(localPath, content);
     }
 
     // Fetch remote registry to get upgrade version info
-    const regRaw = execSync(
-      `gh api /repos/${owner}/${repo}/contents/.github/registry.json?ref=${GENESIS_CHANNEL}`,
-      { encoding: 'utf8' }
-    );
-    const regContent = JSON.parse(regRaw);
-    const remoteRegistry = JSON.parse(Buffer.from(regContent.content, 'base64').toString('utf8'));
+    const remoteRegistry = this.registryClient.fetchJsonContent(owner, repo, '.github/registry.json', GENESIS_CHANNEL) as Record<string, any>;
     const upgradeInfo = remoteRegistry.skills?.upgrade;
 
     // Update local registry with upgrade skill

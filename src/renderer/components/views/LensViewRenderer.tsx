@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import type { LensViewManifest } from '../../../shared/types';
 import { RefreshCw, Send } from 'lucide-react';
-import { cn, formatTitle, formatDisplayValue } from '../../lib/utils';
+import { cn } from '../../lib/utils';
 import { LensBriefing } from './LensBriefing';
 import { LensTable } from './LensTable';
 import { LensDetail } from './LensDetail';
 import { LensStatusBoard } from './LensStatusBoard';
 import { LensTimeline } from './LensTimeline';
 import { LensEditor } from './LensEditor';
+import { LensForm } from './LensForm';
 
 interface Props {
   view: LensViewManifest;
@@ -172,29 +173,6 @@ function LensViewContent({ view, data, onAction }: { view: LensViewManifest; dat
       );
     case 'form':
     default:
-      return <LensFormContent data={data} schema={view.schema} />;
+      return <LensForm data={data} schema={view.schema} />;
   }
-}
-
-function LensFormContent({ data, schema }: { data: Record<string, unknown>; schema?: Record<string, unknown> }) {
-  const schemaProps = (schema as { properties?: Record<string, { title?: string }> })?.properties;
-  // Use data keys as source of truth, fall back to schema for labels
-  const keys = Object.keys(data);
-
-  return (
-    <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-      {keys.map((key) => {
-        const value = data[key];
-        const label = schemaProps?.[key]?.title ?? formatTitle(key);
-        const displayValue = formatDisplayValue(value);
-
-        return (
-          <div key={key} className="flex justify-between items-start text-sm gap-4">
-            <span className="text-muted-foreground shrink-0">{label}</span>
-            <span className="font-medium text-right break-words min-w-0">{displayValue}</span>
-          </div>
-        );
-      })}
-    </div>
-  );
 }

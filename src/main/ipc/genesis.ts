@@ -3,12 +3,15 @@ import { ipcMain, dialog, BrowserWindow } from 'electron';
 import { MindScaffold, type GenesisConfig } from '../services/MindScaffold';
 import { ChatService } from '../services/ChatService';
 import { ViewDiscovery } from '../services/ViewDiscovery';
+import { ConfigService } from '../services/ConfigService';
+import { seedLensDefaults, installLensSkill } from '../services/MindBootstrap';
 
 export function setupGenesisIPC(
   chatService: ChatService,
   viewDiscovery: ViewDiscovery,
+  configService: ConfigService,
+  scaffold: MindScaffold,
 ): void {
-  const scaffold = new MindScaffold();
 
   ipcMain.handle('genesis:getDefaultPath', async () => {
     return MindScaffold.getDefaultBasePath();
@@ -43,6 +46,8 @@ export function setupGenesisIPC(
 
       // Connect the new mind
       chatService.setMindPath(mindPath);
+      seedLensDefaults(mindPath);
+      installLensSkill(mindPath);
       await viewDiscovery.scan(mindPath);
       viewDiscovery.startWatching(() => {
         if (win) {
@@ -51,10 +56,9 @@ export function setupGenesisIPC(
       });
 
       // Save config
-      const { saveConfig, loadConfig } = await import('./agent');
-      const appConfig = loadConfig();
+      const appConfig = configService.load();
       appConfig.mindPath = mindPath;
-      saveConfig(appConfig);
+      configService.save(appConfig);
 
       return { success: true, mindPath };
     } catch (err) {
