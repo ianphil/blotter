@@ -28,7 +28,7 @@ export class MindManager extends EventEmitter {
     super();
   }
 
-  async loadMind(mindPath: string): Promise<MindContext> {
+  async loadMind(mindPath: string, mindId?: string): Promise<MindContext> {
     // Deduplicate
     const existingId = this.pathToId.get(mindPath);
     if (existingId && this.minds.has(existingId)) {
@@ -38,8 +38,8 @@ export class MindManager extends EventEmitter {
     // Validate
     this.validateMindPath(mindPath);
 
-    // Generate ID
-    const mindId = ConfigService.generateMindId(mindPath);
+    // Use provided ID or generate a new one
+    const id = mindId ?? ConfigService.generateMindId(mindPath);
 
     // Load identity
     const identity = this.identityLoader.load(mindPath);
@@ -69,7 +69,7 @@ export class MindManager extends EventEmitter {
     } as any);
 
     const context: InternalMindContext = {
-      mindId,
+      mindId: id,
       mindPath,
       identity,
       status: 'ready',
@@ -78,8 +78,8 @@ export class MindManager extends EventEmitter {
       extensions: loaded as any[],
     };
 
-    this.minds.set(mindId, context);
-    this.pathToId.set(mindPath, mindId);
+    this.minds.set(id, context);
+    this.pathToId.set(mindPath, id);
 
     // Scan views
     await this.viewDiscovery.scan(mindPath);
@@ -163,11 +163,7 @@ export class MindManager extends EventEmitter {
     const config = this.configService.load();
     for (const record of config.minds) {
       try {
-        const mind = await this.loadMind(record.path);
-        // Override the generated ID with the persisted one for stability
-        if (mind.mindId !== record.id) {
-          this.rekey(mind.mindId, record.id);
-        }
+        await this.loadMind(record.path, record.id);
       } catch (err) {
         console.error(`[MindManager] Failed to restore mind at ${record.path}:`, err);
       }
@@ -205,15 +201,6 @@ export class MindManager extends EventEmitter {
       status: ctx.status,
       error: ctx.error,
     };
-  }
-
-  private rekey(oldId: string, newId: string): void {
-    const ctx = this.minds.get(oldId);
-    if (!ctx) return;
-    this.minds.delete(oldId);
-    (ctx as any).mindId = newId;
-    this.minds.set(newId, ctx);
-    this.pathToId.set(ctx.mindPath, newId);
   }
 
   private persistConfig(): void {
