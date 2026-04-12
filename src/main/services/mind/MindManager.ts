@@ -64,8 +64,9 @@ export class MindManager extends EventEmitter {
           { section: 'tone', override: { type: 'remove' } },
         ],
       },
-      permissions: { autoApprove: true },
-    });
+      onPermissionRequest: async () => ({ kind: 'approved' }),
+      onUserInputRequest: async () => ({ answer: 'Not available in this context', wasFreeform: true }),
+    } as any);
 
     const context: InternalMindContext = {
       mindId,
@@ -151,8 +152,9 @@ export class MindManager extends EventEmitter {
           { section: 'tone', override: { type: 'remove' } },
         ],
       },
-      permissions: { autoApprove: true },
-    });
+      onPermissionRequest: async () => ({ kind: 'approved' }),
+      onUserInputRequest: async () => ({ answer: 'Not available in this context', wasFreeform: true }),
+    } as any);
 
     context.session = session;
   }
