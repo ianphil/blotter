@@ -147,6 +147,7 @@ export function mockElectronAPI(): ElectronAPI {
       list: vi.fn().mockResolvedValue([]),
       setActive: vi.fn().mockResolvedValue(undefined),
       selectDirectory: vi.fn().mockResolvedValue(null),
+      openWindow: vi.fn().mockResolvedValue(undefined),
       onMindChanged: vi.fn().mockReturnValue(() => {}),
     },
     lens: {
