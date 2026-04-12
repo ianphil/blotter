@@ -90,7 +90,11 @@ const createWindow = () => {
 app.on('ready', async () => {
   // --- IPC adapters (thin, parameter-injected) ---
   setupChatIPC(chatService, mindManager);
-  setupMindIPC(mindManager);
+  setupMindIPC(mindManager, {
+    preloadPath: path.join(__dirname, 'preload.js'),
+    devServerUrl: MAIN_WINDOW_VITE_DEV_SERVER_URL || undefined,
+    rendererPath: MAIN_WINDOW_VITE_DEV_SERVER_URL ? undefined : path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
+  });
   setupLensIPC(viewDiscovery, mindManager);
   setupGenesisIPC(mindManager, scaffold);
   setupAuthIPC(authService);

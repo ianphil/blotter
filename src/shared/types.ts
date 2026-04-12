@@ -138,6 +138,7 @@ export interface ElectronAPI {
     list: () => Promise<MindContext[]>;
     setActive: (mindId: string) => Promise<void>;
     selectDirectory: () => Promise<string | null>;
+    openWindow: (mindId: string) => Promise<void>;
     onMindChanged: (callback: (minds: MindContext[]) => void) => () => void;
   };
   /** @deprecated Use mind: namespace instead */

@@ -4,7 +4,13 @@ import * as path from 'path';
 import * as os from 'os';
 import type { MindManager } from '../services/mind/MindManager';
 
-export function setupMindIPC(mindManager: MindManager): void {
+export interface MindIPCConfig {
+  preloadPath: string;
+  devServerUrl?: string;
+  rendererPath?: string;
+}
+
+export function setupMindIPC(mindManager: MindManager, config: MindIPCConfig): void {
   ipcMain.handle('mind:add', async (event, mindPath: string) => {
     return mindManager.loadMind(mindPath);
   });
@@ -37,6 +43,55 @@ export function setupMindIPC(mindManager: MindManager): void {
 
     if (result.canceled || result.filePaths.length === 0) return null;
     return result.filePaths[0];
+  });
+
+  ipcMain.handle('mind:openWindow', async (_event, mindId: string) => {
+    // If already popped out, focus existing window
+    const existing = mindManager.getWindow(mindId);
+    if (existing) {
+      existing.focus();
+      return;
+    }
+
+    // Verify mind exists
+    const mind = mindManager.getMind(mindId);
+    if (!mind) return;
+
+    // Create popout window
+    const win = new BrowserWindow({
+      width: 900,
+      height: 700,
+      minWidth: 500,
+      minHeight: 400,
+      title: `${mind.identity.name} — Chamber`,
+      titleBarStyle: 'hiddenInset',
+      titleBarOverlay: process.platform === 'win32' ? {
+        color: '#09090b',
+        symbolColor: '#fafafa',
+        height: 36,
+      } : undefined,
+      backgroundColor: '#09090b',
+      webPreferences: {
+        preload: config.preloadPath,
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: false,
+      },
+    });
+
+    // Load same renderer with popout query params
+    if (config.devServerUrl) {
+      win.loadURL(`${config.devServerUrl}?mindId=${mindId}&popout=true`);
+    } else if (config.rendererPath) {
+      win.loadFile(config.rendererPath, { query: { mindId, popout: 'true' } });
+    }
+
+    mindManager.attachWindow(mindId, win);
+
+    // Notify all windows about the state change
+    for (const w of BrowserWindow.getAllWindows()) {
+      w.webContents.send('mind:changed', mindManager.listMinds());
+    }
   });
 
   // Backward compat: renderer still calls agent:getStatus during startup

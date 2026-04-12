@@ -19,6 +19,7 @@ const electronAPI: ElectronAPI = {
     list: () => ipcRenderer.invoke('mind:list'),
     setActive: (mindId) => ipcRenderer.invoke('mind:setActive', mindId),
     selectDirectory: () => ipcRenderer.invoke('mind:selectDirectory'),
+    openWindow: (mindId) => ipcRenderer.invoke('mind:openWindow', mindId),
     onMindChanged: (callback) => createIpcListener(ipcRenderer, 'mind:changed', callback),
   },
   agent: {
