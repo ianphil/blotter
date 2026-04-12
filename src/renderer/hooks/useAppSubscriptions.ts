@@ -27,7 +27,11 @@ export function useAppSubscriptions() {
     return () => { unsub(); };
   }, [dispatch]);
 
-  // Fetch models when agent connects or active mind changes
+  // Reload views and models when active mind changes
+  useEffect(() => {
+    modelsLoaded.current = false;
+    viewsLoaded.current = false;
+  }, [activeMindId]);
   useEffect(() => {
     const connected = agentStatus.connected || !!activeMindId;
     if (!connected) {
