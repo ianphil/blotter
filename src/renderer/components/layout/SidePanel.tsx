@@ -50,7 +50,9 @@ function LensViewSideContent() {
 }
 
 export function SidePanel() {
-  const { agentStatus, activeView } = useAppState();
+  const { agentStatus, minds, activeMindId, activeView } = useAppState();
+  const activeMind = minds.find(m => m.mindId === activeMindId);
+  const connected = minds.length > 0 || agentStatus.connected;
   const dispatch = useAppDispatch();
 
   return (
@@ -72,15 +74,15 @@ export function SidePanel() {
         <div className="flex items-center gap-2 text-xs">
           <div className={cn(
             'w-2 h-2 rounded-full',
-            agentStatus.connected ? 'bg-genesis' : 'bg-destructive-foreground'
+            connected ? 'bg-genesis' : 'bg-destructive-foreground'
           )} />
           <span className="text-muted-foreground">
-            {agentStatus.connected ? 'Mind loaded' : 'No mind selected'}
+            {connected ? (activeMind?.identity.name ?? 'Mind loaded') : 'No mind selected'}
           </span>
         </div>
-        {agentStatus.mindPath && (
-          <p className="text-xs text-muted-foreground mt-1 truncate" title={agentStatus.mindPath}>
-            {agentStatus.mindPath.split(/[\\/]/).pop()}
+        {activeMind && (
+          <p className="text-xs text-muted-foreground mt-1 truncate" title={activeMind.mindPath}>
+            {activeMind.mindPath.split(/[\\/]/).pop()}
           </p>
         )}
       </div>
