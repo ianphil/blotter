@@ -54,7 +54,7 @@ export class MindManager extends EventEmitter {
     const { tools, loaded } = await this.extensionLoader.loadTools(mindPath);
 
     // Create session
-    const session = client.createSession({
+    const session = await client.createSession({
       workingDirectory: mindPath,
       tools: tools as any[],
       systemMessage: {
@@ -142,7 +142,7 @@ export class MindManager extends EventEmitter {
     const context = this.minds.get(mindId);
     if (!context) throw new Error(`Mind ${mindId} not found`);
 
-    const session = context.client.createSession({
+    const session = await context.client.createSession({
       workingDirectory: context.mindPath,
       tools: (context.extensions as any[]).flatMap((e: any) => e.tools ?? []),
       systemMessage: {
