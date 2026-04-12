@@ -6,7 +6,7 @@ import { useAppState, useAppDispatch } from '../lib/store';
  * Mount once in AppShell — never in a view component.
  */
 export function useAppSubscriptions() {
-  const { agentStatus } = useAppState();
+  const { agentStatus, activeMindId } = useAppState();
   const dispatch = useAppDispatch();
   const modelsLoaded = useRef(false);
   const viewsLoaded = useRef(false);
@@ -27,9 +27,10 @@ export function useAppSubscriptions() {
     return () => { unsub(); };
   }, [dispatch]);
 
-  // Fetch models when agent connects
+  // Fetch models when agent connects or active mind changes
   useEffect(() => {
-    if (!agentStatus.connected) {
+    const connected = agentStatus.connected || !!activeMindId;
+    if (!connected) {
       modelsLoaded.current = false;
       viewsLoaded.current = false;
       return;
@@ -67,5 +68,5 @@ export function useAppSubscriptions() {
       };
       loadViews();
     }
-  }, [agentStatus.connected, dispatch]);
+  }, [agentStatus.connected, activeMindId, dispatch]);
 }

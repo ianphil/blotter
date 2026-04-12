@@ -84,7 +84,7 @@ const createWindow = () => {
 
 app.on('ready', async () => {
   // --- IPC adapters (thin, parameter-injected) ---
-  setupChatIPC(chatService);
+  setupChatIPC(chatService, mindManager);
   setupMindIPC(mindManager);
   setupLensIPC(viewDiscovery, mindManager);
   setupGenesisIPC(mindManager, scaffold);
