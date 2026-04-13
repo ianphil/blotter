@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import * as path from 'path';
 
 vi.mock('electron', () => ({
   BrowserWindow: { getAllWindows: vi.fn().mockReturnValue([]) },
@@ -33,8 +34,8 @@ describe('ViewDiscovery', () => {
     it('returns parsed view manifests from .github/lens/', async () => {
       mockExistsSync.mockImplementation((p: fs.PathLike) => {
         const s = String(p);
-        if (s.endsWith('.github\\lens')) return true;
-        if (s.endsWith('my-view\\view.json')) return true;
+        if (s.endsWith(path.join('.github', 'lens'))) return true;
+        if (s.endsWith(path.join('my-view', 'view.json'))) return true;
         return false;
       });
 
@@ -46,7 +47,7 @@ describe('ViewDiscovery', () => {
         name: 'My View', icon: 'eye', view: 'briefing', source: 'data.json',
       }));
 
-      const views = await discovery.scan('C:\\test\\mind');
+      const views = await discovery.scan('/tmp/test/mind');
       expect(views).toHaveLength(1);
       expect(views[0].name).toBe('My View');
       expect(views[0].id).toBe('my-view');
@@ -59,28 +60,28 @@ describe('ViewDiscovery', () => {
       ] as unknown as ReturnType<typeof fs.readdirSync>);
       mockReadFileSync.mockReturnValue(JSON.stringify({ name: 'V1', icon: 'a', view: 'form', source: 'd.json' }));
 
-      await discovery.scan('C:\\mind-a');
+      await discovery.scan('/tmp/mind-a');
 
       mockReadFileSync.mockReturnValue(JSON.stringify({ name: 'V2', icon: 'b', view: 'form', source: 'd.json' }));
-      await discovery.scan('C:\\mind-b');
+      await discovery.scan('/tmp/mind-b');
 
-      expect(discovery.getViews('C:\\mind-a')).toHaveLength(1);
-      expect(discovery.getViews('C:\\mind-b')).toHaveLength(1);
-      expect(discovery.getViews('C:\\mind-a')[0].name).toBe('V1');
-      expect(discovery.getViews('C:\\mind-b')[0].name).toBe('V2');
+      expect(discovery.getViews('/tmp/mind-a')).toHaveLength(1);
+      expect(discovery.getViews('/tmp/mind-b')).toHaveLength(1);
+      expect(discovery.getViews('/tmp/mind-a')[0].name).toBe('V1');
+      expect(discovery.getViews('/tmp/mind-b')[0].name).toBe('V2');
     });
 
     it('returns empty when no lens dir exists', async () => {
       mockExistsSync.mockReturnValue(false);
-      const views = await discovery.scan('C:\\test\\mind');
+      const views = await discovery.scan('/tmp/test/mind');
       expect(views).toEqual([]);
     });
 
     it('skips entries with invalid view.json', async () => {
       mockExistsSync.mockImplementation((p: fs.PathLike) => {
         const s = String(p);
-        if (s.endsWith('.github\\lens')) return true;
-        if (s.endsWith('bad-view\\view.json')) return true;
+        if (s.endsWith(path.join('.github', 'lens'))) return true;
+        if (s.endsWith(path.join('bad-view', 'view.json'))) return true;
         return false;
       });
 
@@ -90,8 +91,8 @@ describe('ViewDiscovery', () => {
 
       mockReadFileSync.mockReturnValue('not json');
 
-      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
-      const views = await discovery.scan('C:\\test\\mind');
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(vi.fn());
+      const views = await discovery.scan('/tmp/test/mind');
       expect(views).toEqual([]);
       expect(consoleSpy).toHaveBeenCalled();
       consoleSpy.mockRestore();
@@ -100,7 +101,7 @@ describe('ViewDiscovery', () => {
 
   describe('getViews', () => {
     it('returns empty before scan', () => {
-      expect(discovery.getViews('C:\\mind')).toEqual([]);
+      expect(discovery.getViews('/tmp/mind')).toEqual([]);
     });
 
     it('returns all views when no mindPath given', async () => {
@@ -110,8 +111,8 @@ describe('ViewDiscovery', () => {
       ] as unknown as ReturnType<typeof fs.readdirSync>);
       mockReadFileSync.mockReturnValue(JSON.stringify({ name: 'V', icon: 'x', view: 'form', source: 'd.json' }));
 
-      await discovery.scan('C:\\mind-a');
-      await discovery.scan('C:\\mind-b');
+      await discovery.scan('/tmp/mind-a');
+      await discovery.scan('/tmp/mind-b');
 
       expect(discovery.getViews()).toHaveLength(2);
     });
@@ -127,30 +128,30 @@ describe('ViewDiscovery', () => {
         name: 'Test', icon: 'eye', view: 'briefing', source: 'data.json',
       }));
 
-      await discovery.scan('C:\\test\\mind');
+      await discovery.scan('/tmp/test/mind');
 
       mockReadFileSync.mockReturnValueOnce(JSON.stringify({ count: 42 }));
-      const data = discovery.getViewData('test', 'C:\\test\\mind');
+      const data = discovery.getViewData('test', '/tmp/test/mind');
       expect(data).toEqual({ count: 42 });
     });
 
     it('returns null for unknown viewId', () => {
-      expect(discovery.getViewData('nonexistent', 'C:\\mind')).toBeNull();
+      expect(discovery.getViewData('nonexistent', '/tmp/mind')).toBeNull();
     });
   });
 
   describe('removeMind', () => {
     it('clears views and stops watching for that mind', async () => {
       const mockClose = vi.fn();
-      vi.mocked(fs.watch).mockReturnValue({ close: mockClose } as any);
+      vi.mocked(fs.watch).mockReturnValue({ close: mockClose } as unknown as fs.FSWatcher);
       mockExistsSync.mockReturnValue(true);
       mockReaddirSync.mockReturnValue([]);
 
-      await discovery.scan('C:\\mind-a');
-      discovery.startWatching('C:\\mind-a', vi.fn());
-      discovery.removeMind('C:\\mind-a');
+      await discovery.scan('/tmp/mind-a');
+      discovery.startWatching('/tmp/mind-a', vi.fn());
+      discovery.removeMind('/tmp/mind-a');
 
-      expect(discovery.getViews('C:\\mind-a')).toEqual([]);
+      expect(discovery.getViews('/tmp/mind-a')).toEqual([]);
       expect(mockClose).toHaveBeenCalled();
     });
   });
@@ -158,23 +159,23 @@ describe('ViewDiscovery', () => {
   describe('stopWatching', () => {
     it('closes watchers for a specific mind', () => {
       const mockClose = vi.fn();
-      vi.mocked(fs.watch).mockReturnValue({ close: mockClose } as any);
+      vi.mocked(fs.watch).mockReturnValue({ close: mockClose } as unknown as fs.FSWatcher);
       mockExistsSync.mockReturnValue(true);
       mockReaddirSync.mockReturnValue([]);
 
-      discovery.startWatching('C:\\mind', vi.fn());
-      discovery.stopWatching('C:\\mind');
+      discovery.startWatching('/tmp/mind', vi.fn());
+      discovery.stopWatching('/tmp/mind');
       expect(mockClose).toHaveBeenCalled();
     });
 
     it('closes all watchers when no mindPath given', () => {
       const mockClose = vi.fn();
-      vi.mocked(fs.watch).mockReturnValue({ close: mockClose } as any);
+      vi.mocked(fs.watch).mockReturnValue({ close: mockClose } as unknown as fs.FSWatcher);
       mockExistsSync.mockReturnValue(true);
       mockReaddirSync.mockReturnValue([]);
 
-      discovery.startWatching('C:\\mind-a', vi.fn());
-      discovery.startWatching('C:\\mind-b', vi.fn());
+      discovery.startWatching('/tmp/mind-a', vi.fn());
+      discovery.startWatching('/tmp/mind-b', vi.fn());
       discovery.stopWatching();
       expect(mockClose).toHaveBeenCalledTimes(2);
     });

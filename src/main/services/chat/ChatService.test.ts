@@ -1,12 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ChatService } from './ChatService';
 import { TurnQueue } from './TurnQueue';
+import type { MindManager } from '../mind';
 
 const mockSession = {
-  send: vi.fn(async () => {}),
-  abort: vi.fn(async () => {}),
-  destroy: vi.fn(async () => {}),
-  on: vi.fn((_eventOrCb: any, _cb?: any) => vi.fn()),
+  send: vi.fn().mockResolvedValue(undefined),
+  abort: vi.fn().mockResolvedValue(undefined),
+  destroy: vi.fn().mockResolvedValue(undefined),
+  on: vi.fn(() => vi.fn()),
 };
 
 const mockMindManager = {
@@ -16,7 +17,7 @@ const mockMindManager = {
     }
     return undefined;
   }),
-  recreateSession: vi.fn(async () => {}),
+  recreateSession: vi.fn(),
 };
 
 describe('ChatService', () => {
@@ -26,13 +27,13 @@ describe('ChatService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     turnQueue = new TurnQueue();
-    svc = new ChatService(mockMindManager as any, turnQueue);
+    svc = new ChatService(mockMindManager as unknown as MindManager, turnQueue);
   });
 
   describe('sendMessage', () => {
     it('gets session from MindManager and calls send', async () => {
       // Mock session.on to fire session.idle immediately
-      mockSession.on.mockImplementation((eventOrCb: any, cb?: any) => {
+      mockSession.on.mockImplementation((eventOrCb: string | ((...args: unknown[]) => void), cb?: (...args: unknown[]) => void) => {
         if (eventOrCb === 'session.idle' && cb) {
           setTimeout(() => cb(), 0);
         }
@@ -89,10 +90,10 @@ describe('ChatService', () => {
 
       // Fresh session returned by recreateSession
       const freshSession = {
-        send: vi.fn(async () => {}),
-        abort: vi.fn(async () => {}),
-        destroy: vi.fn(async () => {}),
-        on: vi.fn((event: string, cb?: any) => {
+        send: vi.fn().mockResolvedValue(undefined),
+        abort: vi.fn().mockResolvedValue(undefined),
+        destroy: vi.fn().mockResolvedValue(undefined),
+        on: vi.fn((event: string, cb?: (...args: unknown[]) => void) => {
           if (event === 'session.idle' && cb) setTimeout(() => cb(), 0);
           return vi.fn();
         }),
@@ -114,8 +115,8 @@ describe('ChatService', () => {
 
       const freshSession = {
         send: vi.fn().mockRejectedValueOnce(new Error('Session not found: def-456')),
-        abort: vi.fn(async () => {}),
-        destroy: vi.fn(async () => {}),
+        abort: vi.fn().mockResolvedValue(undefined),
+        destroy: vi.fn().mockResolvedValue(undefined),
         on: vi.fn(() => vi.fn()),
       };
       mockMindManager.recreateSession.mockResolvedValueOnce(freshSession);
@@ -149,7 +150,7 @@ describe('ChatService', () => {
   describe('TurnQueue integration', () => {
     it('routes sendMessage through TurnQueue', async () => {
       const enqueueSpy = vi.spyOn(turnQueue, 'enqueue');
-      mockSession.on.mockImplementation((eventOrCb: any, cb?: any) => {
+      mockSession.on.mockImplementation((eventOrCb: string | ((...args: unknown[]) => void), cb?: (...args: unknown[]) => void) => {
         if (eventOrCb === 'session.idle' && cb) {
           setTimeout(() => cb(), 0);
         }
@@ -162,9 +163,9 @@ describe('ChatService', () => {
 
     it('concurrent sends to same mind are serialized', async () => {
       const order: string[] = [];
-      let idleCallbacks: (() => void)[] = [];
+      const idleCallbacks: (() => void)[] = [];
 
-      mockSession.on.mockImplementation((eventOrCb: any, cb?: any) => {
+      mockSession.on.mockImplementation((eventOrCb: string | ((...args: unknown[]) => void), cb?: (...args: unknown[]) => void) => {
         if (eventOrCb === 'session.idle' && cb) {
           idleCallbacks.push(cb);
         }

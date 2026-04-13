@@ -22,19 +22,19 @@ describe('ConfigService', () => {
 
   describe('load', () => {
     it('returns v2 config as-is', () => {
-      const v2: AppConfig = { version: 2, minds: [{ id: 'q-a1b2', path: 'C:\\agents\\q' }], activeMindId: 'q-a1b2', theme: 'light' };
+      const v2: AppConfig = { version: 2, minds: [{ id: 'q-a1b2', path: '/tmp/agents/q' }], activeMindId: 'q-a1b2', theme: 'light' };
       vi.mocked(fs.readFileSync).mockReturnValue(JSON.stringify(v2));
       expect(svc.load()).toEqual(v2);
     });
 
     it('migrates v1 config with mindPath to v2', () => {
       vi.mocked(fs.readFileSync).mockReturnValue(
-        JSON.stringify({ mindPath: 'C:\\agents\\q', theme: 'light' }),
+        JSON.stringify({ mindPath: '/tmp/agents/q', theme: 'light' }),
       );
       const result = svc.load();
       expect(result.version).toBe(2);
       expect(result.minds).toHaveLength(1);
-      expect(result.minds[0].path).toBe('C:\\agents\\q');
+      expect(result.minds[0].path).toBe('/tmp/agents/q');
       expect(result.minds[0].id).toMatch(/^q-[a-f0-9]{4}$/);
       expect(result.activeMindId).toBe(result.minds[0].id);
       expect(result.theme).toBe('light');
@@ -63,8 +63,8 @@ describe('ConfigService', () => {
       const v2: AppConfig = {
         version: 2,
         minds: [
-          { id: 'q-a1b2', path: 'C:\\agents\\q' },
-          { id: 'q-c3d4', path: 'C:\\agents\\q' },
+          { id: 'q-a1b2', path: '/tmp/agents/q' },
+          { id: 'q-c3d4', path: '/tmp/agents/q' },
         ],
         activeMindId: 'q-a1b2',
         theme: 'dark',
@@ -78,7 +78,7 @@ describe('ConfigService', () => {
 
   describe('save', () => {
     it('creates directory and writes v2 JSON', () => {
-      const config: AppConfig = { version: 2, minds: [{ id: 'q-a1b2', path: 'C:\\agents\\q' }], activeMindId: 'q-a1b2', theme: 'dark' };
+      const config: AppConfig = { version: 2, minds: [{ id: 'q-a1b2', path: '/tmp/agents/q' }], activeMindId: 'q-a1b2', theme: 'dark' };
       svc.save(config);
       expect(vi.mocked(fs.mkdirSync)).toHaveBeenCalledWith(expect.any(String), {
         recursive: true,
@@ -92,7 +92,7 @@ describe('ConfigService', () => {
 
   describe('generateMindId', () => {
     it('generates id from folder basename + 4 hex chars', () => {
-      const id = ConfigService.generateMindId('C:\\agents\\my-agent');
+      const id = ConfigService.generateMindId('/tmp/agents/my-agent');
       expect(id).toMatch(/^my-agent-[a-f0-9]{4}$/);
     });
 
@@ -102,8 +102,8 @@ describe('ConfigService', () => {
     });
 
     it('generates unique ids for same path', () => {
-      const id1 = ConfigService.generateMindId('C:\\agents\\q');
-      const id2 = ConfigService.generateMindId('C:\\agents\\q');
+      const id1 = ConfigService.generateMindId('/tmp/agents/q');
+      const id2 = ConfigService.generateMindId('/tmp/agents/q');
       // Statistically should differ, but both match the pattern
       expect(id1).toMatch(/^q-[a-f0-9]{4}$/);
       expect(id2).toMatch(/^q-[a-f0-9]{4}$/);

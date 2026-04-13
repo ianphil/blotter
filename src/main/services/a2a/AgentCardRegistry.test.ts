@@ -14,6 +14,7 @@ vi.mock('fs', async () => {
 });
 
 import * as fs from 'fs';
+import * as path from 'path';
 import { AgentCardRegistry } from './AgentCardRegistry';
 
 function makeMindContext(overrides: Partial<MindContext> = {}): MindContext {
@@ -40,12 +41,14 @@ describe('AgentCardRegistry', () => {
     registry.register(makeMindContext());
     const card = registry.getCard('q-123');
     expect(card).not.toBeNull();
-    expect(card!.name).toBe('Q');
+    if (!card) throw new Error('expected card');
+    expect(card.name).toBe('Q');
   });
 
   it('AgentCard has all required A2A fields', () => {
     registry.register(makeMindContext());
-    const card = registry.getCard('q-123')!;
+    const card = registry.getCard('q-123');
+    if (!card) throw new Error('expected card');
 
     expect(card.name).toBe('Q');
     expect(card.description).toBeTruthy();
@@ -60,7 +63,9 @@ describe('AgentCardRegistry', () => {
 
   it('supportedInterfaces uses IN_PROCESS binding', () => {
     registry.register(makeMindContext());
-    const iface = registry.getCard('q-123')!.supportedInterfaces[0];
+    const card = registry.getCard('q-123');
+    if (!card) throw new Error('expected card');
+    const iface = card.supportedInterfaces[0];
 
     expect(iface.protocolBinding).toBe('IN_PROCESS');
     expect(iface.protocolVersion).toBe('1.0');
@@ -87,7 +92,8 @@ describe('AgentCardRegistry', () => {
     const card = registry.getCardByName('Q');
 
     expect(card).not.toBeNull();
-    expect(card!.mindId).toBe('q-123');
+    if (!card) throw new Error('expected card');
+    expect(card.mindId).toBe('q-123');
   });
 
   it('getCardByName() returns null for ambiguous names', () => {
@@ -99,18 +105,17 @@ describe('AgentCardRegistry', () => {
 
   it('discovers skills from .github/skills/ directories', () => {
     const mindPath = 'C:\\src\\q';
-    const skillsDir = `${mindPath}\\.github\\skills`;
 
     vi.mocked(fs.existsSync).mockImplementation((p: fs.PathLike) => {
       const s = String(p);
-      if (s.endsWith('.github\\skills')) return true;
-      if (s.endsWith('commit\\SKILL.md')) return true;
-      if (s.endsWith('teams\\SKILL.md')) return true;
+      if (s.includes(path.join('.github', 'skills'))) return true;
+      if (s.endsWith(path.join('commit', 'SKILL.md'))) return true;
+      if (s.endsWith(path.join('teams', 'SKILL.md'))) return true;
       return false;
     });
 
     vi.mocked(fs.readdirSync).mockImplementation(((p: string) => {
-      if (String(p).endsWith('.github\\skills')) {
+      if (String(p).includes(path.join('.github', 'skills'))) {
         return [
           { name: 'commit', isDirectory: () => true },
           { name: 'teams', isDirectory: () => true },
@@ -120,22 +125,25 @@ describe('AgentCardRegistry', () => {
     }) as typeof fs.readdirSync);
 
     vi.mocked(fs.readFileSync).mockImplementation(((p: string) => {
-      if (String(p).endsWith('commit\\SKILL.md')) return '# Commit\nCommits changes to git.';
-      if (String(p).endsWith('teams\\SKILL.md')) return '# Teams\nSend messages via Teams.';
+      if (String(p).endsWith(path.join('commit', 'SKILL.md'))) return '# Commit\nCommits changes to git.';
+      if (String(p).endsWith(path.join('teams', 'SKILL.md'))) return '# Teams\nSend messages via Teams.';
       return '';
     }) as typeof fs.readFileSync);
 
     registry.register(makeMindContext({ mindPath }));
-    const card = registry.getCard('q-123')!;
+    const card = registry.getCard('q-123');
+    if (!card) throw new Error('expected card');
 
     expect(card.skills).toHaveLength(2);
 
-    const commit = card.skills.find((s) => s.id === 'commit')!;
+    const commit = card.skills.find((s) => s.id === 'commit');
+    if (!commit) throw new Error('expected commit skill');
     expect(commit.name).toBe('Commit');
     expect(commit.description).toBe('Commits changes to git.');
     expect(commit.tags).toContain('commit');
 
-    const teams = card.skills.find((s) => s.id === 'teams')!;
+    const teams = card.skills.find((s) => s.id === 'teams');
+    if (!teams) throw new Error('expected teams skill');
     expect(teams.name).toBe('Teams');
     expect(teams.description).toBe('Send messages via Teams.');
     expect(teams.tags).toContain('teams');
