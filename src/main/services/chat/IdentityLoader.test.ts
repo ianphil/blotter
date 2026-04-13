@@ -22,7 +22,7 @@ describe('IdentityLoader', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
       vi.mocked(fs.readFileSync).mockReturnValue('# Q\nI am an agent.');
       vi.mocked(fs.readdirSync).mockReturnValue([]);
-      const result = loader.load('C:\\test');
+      const result = loader.load('/tmp/test');
       expect(result).toEqual({
         name: 'Q',
         systemMessage: '# Q\nI am an agent.',
@@ -33,21 +33,21 @@ describe('IdentityLoader', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
       vi.mocked(fs.readFileSync).mockReturnValue('# My Agent Name\nSome content\n# Another heading');
       vi.mocked(fs.readdirSync).mockReturnValue([]);
-      expect(loader.load('C:\\test')?.name).toBe('My Agent Name');
+      expect(loader.load('/tmp/test')?.name).toBe('My Agent Name');
     });
 
     it('falls back to folder name when no H1 exists', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
       vi.mocked(fs.readFileSync).mockReturnValue('No heading here, just content.');
       vi.mocked(fs.readdirSync).mockReturnValue([]);
-      expect(loader.load('C:\\agents\\fox')?.name).toBe('fox');
+      expect(loader.load('/tmp/agents/fox')?.name).toBe('fox');
     });
 
     it('strips "— Soul" suffix from name', () => {
       vi.mocked(fs.existsSync).mockReturnValue(true);
       vi.mocked(fs.readFileSync).mockReturnValue('# The Dude — Soul\nContent');
       vi.mocked(fs.readdirSync).mockReturnValue([]);
-      expect(loader.load('C:\\agents\\dude')?.name).toBe('The Dude');
+      expect(loader.load('/tmp/agents/dude')?.name).toBe('The Dude');
     });
 
     it('includes agent file content in systemMessage', () => {
@@ -56,14 +56,14 @@ describe('IdentityLoader', () => {
         .mockReturnValueOnce('# Soul')
         .mockReturnValueOnce('---\nname: test\n---\nInstructions');
       vi.mocked(fs.readdirSync).mockReturnValue(['main.agent.md'] as unknown as fs.Dirent[]);
-      const result = loader.load('C:\\test');
+      const result = loader.load('/tmp/test');
       expect(result?.systemMessage).toContain('Instructions');
       expect(result?.systemMessage).not.toContain('name: test');
     });
 
     it('returns null when nothing exists', () => {
       vi.mocked(fs.existsSync).mockReturnValue(false);
-      expect(loader.load('C:\\test')).toBeNull();
+      expect(loader.load('/tmp/test')).toBeNull();
     });
   });
 });
