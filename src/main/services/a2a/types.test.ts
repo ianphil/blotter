@@ -1,18 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type {
-  Part,
   Message,
-  TaskStatusUpdateEvent,
-  TaskArtifactUpdateEvent,
-  GetTaskRequest,
-  ListTasksRequest,
-  ListTasksResponse,
-  CancelTaskRequest,
-  StreamResponse,
-  Artifact,
-  Task,
-  TaskState,
-  AgentExtension,
 } from './types';
 import {
   generateMessageId,
@@ -46,20 +34,6 @@ describe('A2A Types', () => {
     it('includes hopCount in metadata defaulting to 0', () => {
       const msg = createTextMessage('sender-1', 'Hello');
       expect(msg.metadata?.hopCount).toBe(0);
-    });
-  });
-
-  describe('Part', () => {
-    it('supports text content', () => {
-      const part: Part = { text: 'hello', mediaType: 'text/plain' };
-      expect(part.text).toBe('hello');
-      expect(part.mediaType).toBe('text/plain');
-    });
-
-    it('supports data content', () => {
-      const part: Part = { data: { key: 'value' }, mediaType: 'application/json' };
-      expect(part.data).toEqual({ key: 'value' });
-      expect(part.mediaType).toBe('application/json');
     });
   });
 
@@ -106,111 +80,6 @@ describe('A2A Types', () => {
     it('produces unique IDs with ctx- prefix', () => {
       const id = generateContextId();
       expect(id.startsWith('ctx-')).toBe(true);
-    });
-  });
-
-  describe('TaskStatusUpdateEvent', () => {
-    it('shape validation — all fields present', () => {
-      const evt: TaskStatusUpdateEvent = {
-        taskId: 'task-1',
-        contextId: 'ctx-1',
-        status: { state: 'working', timestamp: new Date().toISOString() },
-        metadata: { source: 'test' },
-      };
-      expect(evt.taskId).toBe('task-1');
-      expect(evt.contextId).toBe('ctx-1');
-      expect(evt.status.state).toBe('working');
-      expect(evt.metadata?.source).toBe('test');
-    });
-  });
-
-  describe('TaskArtifactUpdateEvent', () => {
-    it('shape validation — including append, lastChunk, metadata', () => {
-      const evt: TaskArtifactUpdateEvent = {
-        taskId: 'task-2',
-        contextId: 'ctx-2',
-        artifact: { artifactId: 'a-1', parts: [{ text: 'hi' }] },
-        append: true,
-        lastChunk: false,
-        metadata: { seq: 1 },
-      };
-      expect(evt.taskId).toBe('task-2');
-      expect(evt.contextId).toBe('ctx-2');
-      expect(evt.artifact.artifactId).toBe('a-1');
-      expect(evt.append).toBe(true);
-      expect(evt.lastChunk).toBe(false);
-      expect(evt.metadata?.seq).toBe(1);
-    });
-  });
-
-  describe('GetTaskRequest', () => {
-    it('shape validation', () => {
-      const req: GetTaskRequest = { id: 'task-1', historyLength: 5 };
-      expect(req.id).toBe('task-1');
-      expect(req.historyLength).toBe(5);
-    });
-  });
-
-  describe('ListTasksRequest', () => {
-    it('shape validation', () => {
-      const req: ListTasksRequest = {
-        contextId: 'ctx-1',
-        status: 'working',
-        historyLength: 0,
-      };
-      expect(req.contextId).toBe('ctx-1');
-      expect(req.status).toBe('working');
-      expect(req.historyLength).toBe(0);
-    });
-  });
-
-  describe('ListTasksResponse', () => {
-    it('wrapper has required fields — tasks, nextPageToken, pageSize, totalSize', () => {
-      const resp: ListTasksResponse = {
-        tasks: [],
-        nextPageToken: '',
-        pageSize: 10,
-        totalSize: 0,
-      };
-      expect(resp.tasks).toEqual([]);
-      expect(resp.nextPageToken).toBe('');
-      expect(resp.pageSize).toBe(10);
-      expect(resp.totalSize).toBe(0);
-    });
-  });
-
-  describe('CancelTaskRequest', () => {
-    it('shape validation', () => {
-      const req: CancelTaskRequest = { id: 'task-1', metadata: { reason: 'timeout' } };
-      expect(req.id).toBe('task-1');
-      expect(req.metadata?.reason).toBe('timeout');
-    });
-  });
-
-  describe('StreamResponse', () => {
-    it('shape has all 4 oneof members', () => {
-      const resp: StreamResponse = {
-        task: {
-          id: 't',
-          contextId: 'c',
-          status: { state: 'completed' },
-        },
-        message: { messageId: 'm', role: 'agent', parts: [] },
-        statusUpdate: {
-          taskId: 't',
-          contextId: 'c',
-          status: { state: 'working' },
-        },
-        artifactUpdate: {
-          taskId: 't',
-          contextId: 'c',
-          artifact: { artifactId: 'a', parts: [] },
-        },
-      };
-      expect(resp.task).toBeDefined();
-      expect(resp.message).toBeDefined();
-      expect(resp.statusUpdate).toBeDefined();
-      expect(resp.artifactUpdate).toBeDefined();
     });
   });
 
@@ -269,13 +138,5 @@ describe('A2A Types', () => {
       expect(artifact.parts[0].mediaType).toBe('text/plain');
     });
 
-    it('Artifact type has extensions field capability', () => {
-      const artifact: Artifact = {
-        artifactId: 'a-1',
-        parts: [{ text: 'hi' }],
-        extensions: ['ext-1', 'ext-2'],
-      };
-      expect(artifact.extensions).toEqual(['ext-1', 'ext-2']);
-    });
   });
 });

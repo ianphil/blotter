@@ -1,6 +1,5 @@
 import { EventEmitter } from 'events';
 import type { AgentCardRegistry } from './AgentCardRegistry';
-import type { MindManager } from '../mind/MindManager';
 import type { CopilotSession } from '../mind/types';
 import type {
   SendMessageRequest,
@@ -11,6 +10,14 @@ import type {
   ListTasksResponse,
   Message,
 } from './types';
+
+export interface TaskSessionFactory {
+  createTaskSession(
+    mindId: string,
+    taskId: string,
+    onUserInputRequest?: (prompt: string) => Promise<{ answer: string; wasFreeform: boolean }>,
+  ): Promise<CopilotSession>;
+}
 import {
   generateTaskId,
   generateContextId,
@@ -24,12 +31,15 @@ import {
 const TERMINAL_STATES: Set<TaskState> = new Set(['completed', 'failed', 'canceled', 'rejected']);
 
 export class TaskManager extends EventEmitter {
+  static readonly MAX_COMPLETED_TASKS = 100;
+
   private tasks = new Map<string, Task>();
   private sessions = new Map<string, CopilotSession>();
   private pendingInputs = new Map<string, (answer: { answer: string; wasFreeform: boolean }) => void>();
+  private taskTargets = new Map<string, string>();
 
   constructor(
-    private readonly mindManager: MindManager,
+    private readonly sessionFactory: TaskSessionFactory,
     private readonly agentCardRegistry: AgentCardRegistry,
   ) {
     super();
@@ -60,6 +70,7 @@ export class TaskManager extends EventEmitter {
 
     // 5. Store
     this.tasks.set(taskId, task);
+    this.taskTargets.set(taskId, targetMindId);
 
     // 6. Emit submitted
     this.emitStatusUpdate(task);
@@ -89,14 +100,15 @@ export class TaskManager extends EventEmitter {
     const task = this.tasks.get(id);
     if (!task) return null;
 
-    if (historyLength === undefined) return task;
+    if (historyLength === undefined) return this.snapshotTask(task);
 
     return {
-      ...task,
+      ...this.snapshotTask(task),
       history: historyLength === 0 ? [] : (task.history ?? []).slice(-historyLength),
     };
   }
 
+  // TODO: A2A pagination (page_size, page_token) not implemented — returns all matching tasks
   listTasks(filter?: { contextId?: string; status?: TaskState }): ListTasksResponse {
     let tasks = [...this.tasks.values()];
 
@@ -108,7 +120,7 @@ export class TaskManager extends EventEmitter {
     }
 
     return {
-      tasks,
+      tasks: tasks.map(t => this.snapshotTask(t)),
       nextPageToken: '',
       pageSize: tasks.length,
       totalSize: tasks.length,
@@ -127,11 +139,12 @@ export class TaskManager extends EventEmitter {
     // Abort session if exists
     const session = this.sessions.get(id);
     if (session) {
-      (session as any).abort?.().catch(() => {});
+      // CopilotSession type may not expose abort() — use optional chaining
+      (session as { abort?: () => Promise<void> }).abort?.().catch(() => {});
       this.sessions.delete(id);
     }
 
-    return task;
+    return this.snapshotTask(task);
   }
 
   resumeTask(id: string, message: Message): Task {
@@ -154,12 +167,21 @@ export class TaskManager extends EventEmitter {
     resolver({ answer: answerText, wasFreeform: true });
     this.pendingInputs.delete(id);
 
-    return { ...task };
+    return this.snapshotTask(task);
   }
 
   // ---------------------------------------------------------------------------
   // Private
   // ---------------------------------------------------------------------------
+
+  private snapshotTask(task: Task): Task {
+    return {
+      ...task,
+      status: { ...task.status },
+      history: [...(task.history ?? [])],
+      artifacts: [...(task.artifacts ?? [])],
+    };
+  }
 
   private async processTask(task: Task, targetMindId: string, message: Message): Promise<void> {
     // a. Transition to working
@@ -177,7 +199,7 @@ export class TaskManager extends EventEmitter {
       });
     };
 
-    const session = await this.mindManager.createTaskSession(targetMindId, task.id, onUserInputRequest);
+    const session = await this.sessionFactory.createTaskSession(targetMindId, task.id, onUserInputRequest);
     this.sessions.set(task.id, session);
 
     // c. Serialize message
@@ -188,9 +210,10 @@ export class TaskManager extends EventEmitter {
     let responseText = '';
 
     session.on('assistant.message', (event: any) => {
+      if (TERMINAL_STATES.has(task.status.state)) return;
       const content = event?.data?.content ?? '';
       if (content) {
-        responseText = content;
+        responseText += (responseText ? '\n' : '') + content;
         // Add to history
         task.history = task.history ?? [];
         task.history.push({
@@ -212,23 +235,26 @@ export class TaskManager extends EventEmitter {
         task.artifacts = task.artifacts ?? [];
         task.artifacts.push(artifact);
 
-        const artifactEvent: TaskArtifactUpdateEvent = {
+        const artifactEvent: TaskArtifactUpdateEvent & { targetMindId: string } = {
           taskId: task.id,
           contextId: task.contextId,
           artifact,
           lastChunk: true,
+          targetMindId: this.taskTargets.get(task.id) ?? '',
         };
         this.emit('task:artifact-update', artifactEvent);
       }
 
       this.transitionState(task, 'completed');
       this.sessions.delete(task.id);
+      this.taskTargets.delete(task.id);
     });
 
     session.on('session.error', (_event: any) => {
       if (TERMINAL_STATES.has(task.status.state)) return;
       this.transitionState(task, 'failed');
       this.sessions.delete(task.id);
+      this.taskTargets.delete(task.id);
     });
 
     // e. Send prompt
@@ -238,13 +264,33 @@ export class TaskManager extends EventEmitter {
   private transitionState(task: Task, state: TaskState): void {
     task.status = createTaskStatus(state);
     this.emitStatusUpdate(task);
+
+    if (TERMINAL_STATES.has(state)) {
+      this.evictOldTasks();
+    }
+  }
+
+  private evictOldTasks(): void {
+    const terminalTasks = [...this.tasks.entries()]
+      .filter(([, t]) => TERMINAL_STATES.has(t.status.state))
+      .sort((a, b) => {
+        const tsA = a[1].status.timestamp ?? '';
+        const tsB = b[1].status.timestamp ?? '';
+        return tsA.localeCompare(tsB);
+      });
+
+    while (terminalTasks.length > TaskManager.MAX_COMPLETED_TASKS) {
+      const [id] = terminalTasks.shift()!;
+      this.tasks.delete(id);
+    }
   }
 
   private emitStatusUpdate(task: Task): void {
-    const event: TaskStatusUpdateEvent = {
+    const event: TaskStatusUpdateEvent & { targetMindId: string } = {
       taskId: task.id,
       contextId: task.contextId,
       status: task.status,
+      targetMindId: this.taskTargets.get(task.id) ?? '',
     };
     this.emit('task:status-update', event);
   }

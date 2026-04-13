@@ -361,6 +361,15 @@ describe('A2A Task Tools', () => {
     expect(mockTaskManager.listTasks).toHaveBeenCalledWith({ contextId: 'ctx-456', status: 'working' });
   });
 
+  // 9b. a2a_list_tasks rejects invalid status string with error message
+  it('a2a_list_tasks rejects invalid status string with error message', async () => {
+    const tool = findTool('a2a_list_tasks');
+    const result = await tool.handler({ status: 'bogus' });
+
+    expect(result).toEqual({ error: expect.stringContaining('Invalid status: bogus') });
+    expect(mockTaskManager.listTasks).not.toHaveBeenCalled();
+  });
+
   // 10. a2a_cancel_task cancels via TaskManager
   it('a2a_cancel_task cancels via TaskManager', async () => {
     const canceledTask = { ...fakeTask, status: { state: 'canceled' as const, timestamp: new Date().toISOString() } };

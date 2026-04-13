@@ -165,7 +165,7 @@ describe('A2A IPC', () => {
     expect(result).toEqual(task);
   });
 
-  it('a2a:cancelTask returns error object when TaskManager throws', async () => {
+  it('a2a:cancelTask rejects when TaskManager throws', async () => {
     mockTaskManager.cancelTask.mockImplementation(() => {
       throw new Error('Task task-1 not found');
     });
@@ -174,7 +174,6 @@ describe('A2A IPC', () => {
     const handler = handleCalls.find((c: any) => c[0] === 'a2a:cancelTask');
     expect(handler).toBeDefined();
 
-    const result = await handler[1]({}, 'task-1');
-    expect(result).toEqual({ error: 'Task task-1 not found' });
+    await expect(handler[1]({}, 'task-1')).rejects.toThrow('Task task-1 not found');
   });
 });

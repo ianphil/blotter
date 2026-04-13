@@ -50,10 +50,6 @@ export function setupA2AIPC(
   });
 
   ipcMain.handle('a2a:cancelTask', async (_, taskId: string) => {
-    try {
-      return taskManager.cancelTask(taskId);
-    } catch (err) {
-      return { error: err instanceof Error ? err.message : String(err) };
-    }
+    return taskManager.cancelTask(taskId);
   });
 }

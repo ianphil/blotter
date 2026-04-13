@@ -13,4 +13,5 @@ export type {
   Artifact,
   TaskStatusUpdateEvent,
   TaskArtifactUpdateEvent,
+  ListTasksResponse,
 } from '../main/services/a2a/types';

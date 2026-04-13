@@ -1,6 +1,7 @@
 import type { MessageRouter } from './MessageRouter';
 import type { AgentCardRegistry } from './AgentCardRegistry';
 import type { TaskManager } from './TaskManager';
+import type { TaskState } from './types';
 import { createTextMessage } from './helpers';
 
 interface SessionTool {
@@ -63,6 +64,10 @@ export function buildSessionTools(
 
   return [...extensionTools, sendMessage, listAgents, ...buildTaskTools(mindId, taskManager)];
 }
+
+const VALID_TASK_STATES: Set<string> = new Set([
+  'submitted', 'working', 'completed', 'failed', 'canceled', 'input-required', 'rejected', 'auth-required',
+]);
 
 function buildTaskTools(mindId: string, taskManager: TaskManager): SessionTool[] {
   const sendTask: SessionTool = {
@@ -145,7 +150,10 @@ function buildTaskTools(mindId: string, taskManager: TaskManager): SessionTool[]
         context_id?: string;
         status?: string;
       };
-      return taskManager.listTasks({ contextId: context_id, status: status as any });
+      if (status && !VALID_TASK_STATES.has(status)) {
+        return { error: `Invalid status: ${status}. Valid values: ${[...VALID_TASK_STATES].join(', ')}` };
+      }
+      return taskManager.listTasks({ contextId: context_id, status: status as TaskState });
     },
   };
 

@@ -159,14 +159,6 @@ export interface CancelTaskRequest {
   metadata?: Record<string, unknown>;
 }
 
-// For future streaming compatibility
-export interface StreamResponse {
-  task?: Task;
-  message?: Message;
-  statusUpdate?: TaskStatusUpdateEvent;
-  artifactUpdate?: TaskArtifactUpdateEvent;
-}
-
 // Agent extension support
 export interface AgentExtension {
   uri: string;

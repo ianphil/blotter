@@ -98,19 +98,19 @@ describe('TaskManager', () => {
     tm = new TaskManager(mockMindManager as any, mockRegistry as any);
   });
 
-  // 1
+
   it('sendTask() creates task with generated id starting with task-', async () => {
     const task = await tm.sendTask(makeRequest('target-1', 'hello'));
     expect(task.id).toMatch(/^task-/);
   });
 
-  // 2
+
   it('sendTask() sets initial state to submitted', async () => {
     const task = await tm.sendTask(makeRequest('target-1', 'hello'));
     expect(task.status.state).toBe('submitted');
   });
 
-  // 3
+
   it('sendTask() always assigns contextId (never undefined)', async () => {
     const task = await tm.sendTask(makeRequest('target-1', 'hello'));
     expect(task.contextId).toBeDefined();
@@ -118,7 +118,7 @@ describe('TaskManager', () => {
     expect(task.contextId.length).toBeGreaterThan(0);
   });
 
-  // 4
+
   it('sendTask() transitions to working after send', async () => {
     const events: any[] = [];
     tm.on('task:status-update', (e) => events.push(e));
@@ -130,7 +130,7 @@ describe('TaskManager', () => {
     expect(workingEvent).toBeDefined();
   });
 
-  // 5
+
   it('sendTask() transitions to completed on session idle', async () => {
     const events: any[] = [];
     tm.on('task:status-update', (e) => events.push(e));
@@ -147,7 +147,7 @@ describe('TaskManager', () => {
     expect(events.some((e) => e.status.state === 'completed')).toBe(true);
   });
 
-  // 6
+
   it('sendTask() transitions to failed on session error', async () => {
     const events: any[] = [];
     tm.on('task:status-update', (e) => events.push(e));
@@ -163,13 +163,13 @@ describe('TaskManager', () => {
     expect(events.some((e) => e.status.state === 'failed')).toBe(true);
   });
 
-  // 7
+
   it('sendTask() returns task immediately (state is submitted, not completed)', async () => {
     const task = await tm.sendTask(makeRequest('target-1', 'hello'));
     expect(task.status.state).toBe('submitted');
   });
 
-  // 8
+
   it('sendTask() creates artifact from agent response', async () => {
     const artifactEvents: any[] = [];
     tm.on('task:artifact-update', (e) => artifactEvents.push(e));
@@ -189,7 +189,7 @@ describe('TaskManager', () => {
     expect(artifactEvents.length).toBeGreaterThan(0);
   });
 
-  // 9
+
   it('sendTask() accumulates history messages', async () => {
     const task = await tm.sendTask(makeRequest('target-1', 'hello'));
     await flushPromises();
@@ -204,19 +204,19 @@ describe('TaskManager', () => {
     expect(fetched!.history!.length).toBeGreaterThanOrEqual(3);
   });
 
-  // 10
+
   it('sendTask() uses provided contextId (does not overwrite)', async () => {
     const task = await tm.sendTask(makeRequest('target-1', 'hello', { contextId: 'ctx-custom' }));
     expect(task.contextId).toBe('ctx-custom');
   });
 
-  // 11
+
   it('sendTask() generates contextId when not provided', async () => {
     const task = await tm.sendTask(makeRequest('target-1', 'hello'));
     expect(task.contextId).toMatch(/^ctx-/);
   });
 
-  // 12
+
   it('sendTask() passes referenceTaskIds from message', async () => {
     const task = await tm.sendTask(
       makeRequest('target-1', 'hello', { referenceTaskIds: ['task-prev-1', 'task-prev-2'] }),
@@ -227,7 +227,7 @@ describe('TaskManager', () => {
     expect(userMsg?.referenceTaskIds).toEqual(['task-prev-1', 'task-prev-2']);
   });
 
-  // 13
+
   it('getTask() returns current task state', async () => {
     const task = await tm.sendTask(makeRequest('target-1', 'hello'));
     const fetched = tm.getTask(task.id);
@@ -235,12 +235,12 @@ describe('TaskManager', () => {
     expect(fetched!.id).toBe(task.id);
   });
 
-  // 14
+
   it('getTask() returns null for unknown taskId', () => {
     expect(tm.getTask('nonexistent')).toBeNull();
   });
 
-  // 15
+
   it('getTask() respects historyLength (unset=all, 0=none)', async () => {
     const task = await tm.sendTask(makeRequest('target-1', 'hello'));
     await flushPromises();
@@ -263,7 +263,7 @@ describe('TaskManager', () => {
     expect(one!.history!.length).toBe(1);
   });
 
-  // 16
+
   it('listTasks() returns ListTasksResponse with totalSize', async () => {
     await tm.sendTask(makeRequest('target-1', 'a'));
     await tm.sendTask(makeRequest('target-1', 'b'));
@@ -275,7 +275,7 @@ describe('TaskManager', () => {
     expect(res.nextPageToken).toBe('');
   });
 
-  // 17
+
   it('listTasks() filters by contextId', async () => {
     await tm.sendTask(makeRequest('target-1', 'a', { contextId: 'ctx-A' }));
     await tm.sendTask(makeRequest('target-1', 'b', { contextId: 'ctx-B' }));
@@ -285,7 +285,7 @@ describe('TaskManager', () => {
     expect(res.tasks[0].contextId).toBe('ctx-A');
   });
 
-  // 18
+
   it('listTasks() filters by state', async () => {
     const task = await tm.sendTask(makeRequest('target-1', 'a'));
     await flushPromises();
@@ -301,14 +301,14 @@ describe('TaskManager', () => {
     expect(completed.tasks[0].id).toBe(task.id);
   });
 
-  // 19
+
   it('cancelTask() sets state to canceled', async () => {
     const task = await tm.sendTask(makeRequest('target-1', 'hello'));
     const canceled = tm.cancelTask(task.id);
     expect(canceled.status.state).toBe('canceled');
   });
 
-  // 20
+
   it('cancelTask() on terminal task throws', async () => {
     const task = await tm.sendTask(makeRequest('target-1', 'hello'));
     await flushPromises();
@@ -318,6 +318,66 @@ describe('TaskManager', () => {
 
     expect(tm.getTask(task.id)!.status.state).toBe('completed');
     expect(() => tm.cancelTask(task.id)).toThrow();
+  });
+
+  // ---------------------------------------------------------------------------
+  // Eviction
+  // ---------------------------------------------------------------------------
+
+  it('completed tasks within MAX_COMPLETED_TASKS are retained', async () => {
+    // Create 3 tasks and complete them — all should remain (well under limit of 100)
+    const ids: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      const task = await tm.sendTask(makeRequest('target-1', `msg-${i}`));
+      ids.push(task.id);
+      await flushPromises();
+      latestMockSession._emit('session.idle');
+      await flushPromises();
+    }
+
+    for (const id of ids) {
+      expect(tm.getTask(id)).not.toBeNull();
+      expect(tm.getTask(id)!.status.state).toBe('completed');
+    }
+
+    // Verify limit is documented
+    expect(TaskManager.MAX_COMPLETED_TASKS).toBe(100);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Issue fixes
+  // ---------------------------------------------------------------------------
+
+
+  it('after cancelTask, buffered assistant.message events do not mutate history', async () => {
+    const task = await tm.sendTask(makeRequest('target-1', 'hello'));
+    await flushPromises();
+
+    // Cancel the task
+    tm.cancelTask(task.id);
+    const historyLenAfterCancel = tm.getTask(task.id)!.history!.length;
+
+    // Fire a buffered assistant.message after cancellation
+    latestMockSession._emit('assistant.message', { data: { content: 'late message' } });
+    await flushPromises();
+
+    expect(tm.getTask(task.id)!.history!.length).toBe(historyLenAfterCancel);
+  });
+
+
+  it('multiple assistant.message events accumulate in artifact text', async () => {
+    const task = await tm.sendTask(makeRequest('target-1', 'hello'));
+    await flushPromises();
+
+    latestMockSession._emit('assistant.message', { data: { content: 'first part' } });
+    latestMockSession._emit('assistant.message', { data: { content: 'second part' } });
+    latestMockSession._emit('session.idle');
+    await flushPromises();
+
+    const fetched = tm.getTask(task.id);
+    const artifactText = fetched!.artifacts![0].parts[0].text;
+    expect(artifactText).toContain('first part');
+    expect(artifactText).toContain('second part');
   });
 
   // ---------------------------------------------------------------------------
@@ -337,7 +397,7 @@ describe('TaskManager', () => {
       });
     });
 
-    // 21
+
     it('onUserInputRequest callback sets task to input-required', async () => {
       const task = await tm.sendTask(makeRequest('target-1', 'hello'));
       await flushPromises();
@@ -351,7 +411,7 @@ describe('TaskManager', () => {
       expect(fetched!.status.state).toBe('input-required');
     });
 
-    // 22
+
     it('input-required emits task:status-update', async () => {
       const events: any[] = [];
       tm.on('task:status-update', (e) => events.push(e));
@@ -368,7 +428,7 @@ describe('TaskManager', () => {
       expect(inputRequiredEvent.status.message.parts[0].text).toBe('Need info');
     });
 
-    // 23
+
     it('resumeTask sends answer to session callback', async () => {
       const task = await tm.sendTask(makeRequest('target-1', 'hello'));
       await flushPromises();
@@ -391,7 +451,7 @@ describe('TaskManager', () => {
       expect(result.wasFreeform).toBe(true);
     });
 
-    // 24
+
     it('resumeTask transitions back to working', async () => {
       const task = await tm.sendTask(makeRequest('target-1', 'hello'));
       await flushPromises();
@@ -410,7 +470,7 @@ describe('TaskManager', () => {
       expect(fetched!.status.state).toBe('working');
     });
 
-    // 25
+
     it('resumeTask on non-input-required task throws', async () => {
       const task = await tm.sendTask(makeRequest('target-1', 'hello'));
       await flushPromises();
@@ -424,7 +484,7 @@ describe('TaskManager', () => {
       expect(() => tm.resumeTask(task.id, answerMessage)).toThrow(/not in input-required state/);
     });
 
-    // 26
+
     it('resumeTask on unknown task throws', () => {
       const answerMessage: Message = {
         messageId: 'msg-answer-4',
@@ -434,7 +494,34 @@ describe('TaskManager', () => {
       expect(() => tm.resumeTask('nonexistent-task', answerMessage)).toThrow(/not found/);
     });
 
-    // 27
+    // 27 (resumeTask snapshot)
+    it('resumeTask returns a distinct snapshot', async () => {
+      const task = await tm.sendTask(makeRequest('target-1', 'hello'));
+      await flushPromises();
+
+      capturedOnUserInputRequest!('Pick a color');
+      await flushPromises();
+
+      const answerMessage: Message = {
+        messageId: 'msg-snap-1',
+        role: 'user',
+        parts: [{ text: 'Blue', mediaType: 'text/plain' }],
+      };
+      const returned = tm.resumeTask(task.id, answerMessage);
+      const internal = tm.getTask(task.id);
+
+      // Must be distinct objects
+      expect(returned).not.toBe(internal);
+      expect(returned.status).not.toBe(internal!.status);
+      expect(returned.history).not.toBe(internal!.history);
+      expect(returned.artifacts).not.toBe(internal!.artifacts);
+
+      // Mutating returned must not affect internal
+      returned.status.state = 'failed' as any;
+      expect(tm.getTask(task.id)!.status.state).toBe('working');
+    });
+
+
     it('full flow: send → working → input-required → resume → completed', async () => {
       const events: any[] = [];
       tm.on('task:status-update', (e) => events.push(e));
@@ -480,6 +567,89 @@ describe('TaskManager', () => {
       expect(states).toContain('working');
       expect(states).toContain('input-required');
       expect(states).toContain('completed');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Bug 1: targetMindId in events
+  // ---------------------------------------------------------------------------
+
+  describe('targetMindId in events', () => {
+    it('emitted task:status-update includes targetMindId', async () => {
+      const events: any[] = [];
+      tm.on('task:status-update', (e) => events.push(e));
+
+      await tm.sendTask(makeRequest('target-1', 'hello'));
+      await flushPromises();
+
+      // Every status event should carry targetMindId
+      for (const e of events) {
+        expect(e.targetMindId).toBe('target-1');
+      }
+    });
+
+    it('emitted task:artifact-update includes targetMindId', async () => {
+      const artifactEvents: any[] = [];
+      tm.on('task:artifact-update', (e) => artifactEvents.push(e));
+
+      await tm.sendTask(makeRequest('target-1', 'hello'));
+      await flushPromises();
+
+      latestMockSession._emit('assistant.message', { data: { content: 'result' } });
+      latestMockSession._emit('session.idle');
+      await flushPromises();
+
+      expect(artifactEvents.length).toBeGreaterThan(0);
+      for (const e of artifactEvents) {
+        expect(e.targetMindId).toBe('target-1');
+      }
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Bug 2: snapshot isolation
+  // ---------------------------------------------------------------------------
+
+  describe('snapshot isolation', () => {
+    it('getTask() returns a distinct object — mutating it does not affect internal state', async () => {
+      const task = await tm.sendTask(makeRequest('target-1', 'hello'));
+      await flushPromises();
+
+      const fetched = tm.getTask(task.id)!;
+      // Mutate the returned object
+      fetched.status.state = 'failed' as any;
+      fetched.history!.push({ messageId: 'rogue', role: 'user', parts: [] } as any);
+      fetched.artifacts!.push({ artifactId: 'rogue' } as any);
+
+      // Internal state must be unchanged
+      const internal = tm.getTask(task.id)!;
+      expect(internal.status.state).not.toBe('failed');
+      expect(internal.history!.find((m: any) => m.messageId === 'rogue')).toBeUndefined();
+      expect(internal.artifacts!.find((a: any) => a.artifactId === 'rogue')).toBeUndefined();
+    });
+
+    it('listTasks() tasks are distinct from internal state', async () => {
+      await tm.sendTask(makeRequest('target-1', 'hello'));
+
+      const listed = tm.listTasks().tasks[0];
+      listed.status.state = 'failed' as any;
+      listed.artifacts!.push({ artifactId: 'rogue' } as any);
+
+      const internal = tm.listTasks().tasks[0];
+      expect(internal.status.state).not.toBe('failed');
+      expect(internal.artifacts!.find((a: any) => a.artifactId === 'rogue')).toBeUndefined();
+    });
+
+    it('cancelTask() returns a distinct snapshot', async () => {
+      const task = await tm.sendTask(makeRequest('target-1', 'hello'));
+      const canceled = tm.cancelTask(task.id);
+
+      canceled.status.state = 'completed' as any;
+      canceled.artifacts!.push({ artifactId: 'rogue' } as any);
+
+      const internal = tm.getTask(task.id)!;
+      expect(internal.status.state).toBe('canceled');
+      expect(internal.artifacts!.find((a: any) => a.artifactId === 'rogue')).toBeUndefined();
     });
   });
 });

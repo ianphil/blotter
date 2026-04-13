@@ -58,7 +58,7 @@ const toolBuilder = (mindId: string, extensionTools: unknown[]) =>
   buildSessionTools(mindId, extensionTools as any, messageRouter, agentCardRegistry, taskManager);
 
 const mindManager = new MindManager(clientFactory, identityLoader, extensionLoader, configService, viewDiscovery, toolBuilder);
-taskManager = new TaskManager(mindManager as any, agentCardRegistry);
+taskManager = new TaskManager(mindManager, agentCardRegistry);
 const chatService = new ChatService(mindManager, turnQueue);
 const messageRouter = new MessageRouter(chatService, agentCardRegistry, a2aEventBus);
 
