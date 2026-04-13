@@ -99,8 +99,8 @@ export class ChatroomService extends EventEmitter {
     // Fan out to all participants in parallel
     await Promise.all(
       participants.map((mind) =>
-        this.sendToAgent(mind, contextPrompt, roundId).catch(() => {
-          // Per-agent errors are isolated
+        this.sendToAgent(mind, contextPrompt, roundId).catch((err) => {
+          console.error(`[Chatroom] Agent ${mind.mindId} failed:`, err);
         }),
       ),
     );
