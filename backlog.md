@@ -17,7 +17,9 @@
 
 ## Next
 
-- [ ] **Agent management (add/remove/list)** `ux` `arch` — Chamber should support adding and removing agents from the fleet, not just Lens views. Today updating the roster requires manually editing SOUL.md files and reloading agents. Chamber should: add a new agent, remove an agent, view/list current agents and their roles. Natural extension of Chamber's configuration capabilities. *(Ian, 2026-04-13)*
+- [ ] **Deprecate genesis yellow-pages skill** `arch` — Chamber implements a2a natively and does it much better. The `yellow-pages` skill in genesis is redundant. Remove from genesis `.github/skills/yellow-pages/`. *(Skippy, 2026-04-14)*
+- [ ] **Deprecate genesis responses extension** `arch` — Chamber's a2a implementation supersedes the `responses` extension in genesis `.github/extensions/responses/`. Remove from genesis. *(Skippy, 2026-04-14)*
+- [ ] **Agent management (add/remove/list)** `ux` `arch`— Chamber should support adding and removing agents from the fleet, not just Lens views. Today updating the roster requires manually editing SOUL.md files and reloading agents. Chamber should: add a new agent, remove an agent, view/list current agents and their roles. Natural extension of Chamber's configuration capabilities. *(Ian, 2026-04-13)*
 - [ ] **@mention targeting in chatroom** `ux`— `@AgentName` in a chatroom message should route only to that agent (not broadcast). Parse @mentions from input, filter broadcast participants to only the mentioned agent(s). That agent responds and does work; others stay silent. *(Ian, 2026-04-13)*
 - [ ] **Generic `handleChatEvent<T>`** `quality` — `handleChatEvent` returns `ChatMessage[]` but chatroom reducer casts to `ChatroomMessage[]`. Make function generic to preserve extended types. *(Uncle Bob review, 2026-04-13)*
 - [ ] **Chatroom roundId alignment** `bug` — renderer generates optimistic roundId, service generates a different one. Pass roundId through IPC so both sides agree. *(Uncle Bob review, 2026-04-13)*
