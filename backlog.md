@@ -21,6 +21,8 @@
 ## Next
 
 - [ ] **Switch Account** `ux` `auth` — credential picker dropdown in Settings showing cached GitHub accounts (e.g. `ianphil`, `ianphil_microsoft`). Select to switch without re-auth. "Add Account" triggers device flow to cache a new credential. Requires multi-credential awareness in AuthService. *(Ian, 2026-04-15)*
+- [ ] **Deprecate genesis yellow-pages skill** `arch` — Chamber implements a2a natively and does it much better. The `yellow-pages` skill in genesis is redundant. Remove from genesis `.github/skills/yellow-pages/`. *(Skippy, 2026-04-14)*
+- [ ] **Deprecate genesis responses extension** `arch` — Chamber's a2a implementation supersedes the `responses` extension in genesis `.github/extensions/responses/`. Remove from genesis. *(Skippy, 2026-04-14)*
 - [ ] **Duplicate agent name collision** `bug` — creating a second agent with the same name as an existing one (e.g. "Alfred" twice) has undefined behavior. Detect name collisions during agent creation, either block with an error or auto-suffix. Clarify what happens to routing, IPC channels, and chatroom @mentions when names collide. *(Ian, 2026-04-13)*
 - [ ] **Target Linux / WSL** `platform` — primary platform target should be Linux and WSL, not just Windows. Audit platform-specific code (paths, shell spawning, credential storage, installers) and ensure first-class support. *(Ian, 2026-04-13)*
 - [ ] **Per-agent model selection**`ux` `arch` — each agent should have its own model config (e.g. Moneypenny on Opus, Q on GPT-5.4). Persist per-mind in agent config so it survives restarts. Today all agents use the same model. Need: model picker in agent settings, storage in mind config or agent.md frontmatter, pass model override to `session.send()`. *(Ian, 2026-04-13)*
