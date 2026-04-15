@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('electron', () => ({
   ipcMain: { handle: vi.fn() },
-  BrowserWindow: { fromWebContents: vi.fn() },
+  BrowserWindow: { fromWebContents: vi.fn(), getAllWindows: vi.fn().mockReturnValue([]) },
   shell: { openExternal: vi.fn() },
   app: { isPackaged: false },
 }));
@@ -17,10 +17,12 @@ describe('setupAuthIPC', () => {
       getStoredCredential: vi.fn().mockResolvedValue(null),
       setProgressHandler: vi.fn(),
       startLogin: vi.fn().mockResolvedValue({ success: true }),
+      logout: vi.fn().mockResolvedValue(undefined),
     } as unknown as AuthService;
     setupAuthIPC(fakeAuth);
     const channels = vi.mocked(ipcMain.handle).mock.calls.map(c => c[0]);
     expect(channels).toContain('auth:getStatus');
     expect(channels).toContain('auth:startLogin');
+    expect(channels).toContain('auth:logout');
   });
 });
