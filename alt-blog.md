@@ -112,6 +112,114 @@ Short, punchy root-level doc that enforces `bun fmt && bun lint && bun typecheck
 
 Each step is independently shippable and reversible.
 
+## Chat rendering semantics
+
+Separate deep-dive. t3code's chat UI is strikingly different from Chamber's, and the differences aren't cosmetic — they reflect a different mental model of what a conversation is.
+
+### How Chamber renders today
+
+- Uniform layout: avatar + name + timestamp header + content, same for user and assistant.
+- Every reasoning section and every tool call is its own `Collapsible` card (`ToolBlock`, `ReasoningBlock`). Five tool calls in a turn = five stacked cards.
+- No turn boundaries, no virtualization, no duration indicators.
+- `MessageList.tsx` is ~67 LOC with a plain `messages.map()`.
+
+### How t3code renders
+
+Key insight: **the conversation isn't a list of messages — it's a list of heterogeneous timeline rows.**
+
+Row kinds (from `MessagesTimeline.logic.ts`):
+
+```ts
+type MessagesTimelineRow =
+  | { kind: "work";          groupedEntries: WorkLogEntry[] }
+  | { kind: "message";       message: ChatMessage; ... }
+  | { kind: "proposed-plan"; proposedPlan: ProposedPlan }
+  | { kind: "working";       createdAt: string | null };
+```
+
+`deriveMessagesTimelineRows()` walks the raw event stream and **collapses adjacent tool/reasoning/info/error events into a single `work` row**. Messages, plans, and the working indicator become peer rows — not nested children of messages.
+
+Per-row visual treatment:
+
+- **User message.** Right-aligned chat bubble, `rounded-2xl rounded-br-sm`, max-width 80%, secondary background. No avatar, no name. Timestamp in the bottom-right of the bubble. Copy + "revert to here" controls fade in on hover.
+- **Assistant message.** Full-width markdown prose. No bubble, no avatar, no name header. A tiny muted meta line at the bottom: `09:42 • 2.4s`. Copy button fades in on group-hover. If the turn modified files, a `Changed files (N) • +12 −3` panel with a tree view and "View diff" button auto-appends.
+- **Work row.** One compact panel labeled `Work log (N)` or `Tool calls (N)`. Each entry is a **single line**: icon (Terminal / Eye / SquarePen / Wrench / Hammer / Globe / Zap per request kind) + heading + inline preview (command, path, or `file.ts +3 more`). Over 6 entries → truncates to last 6 with a `Show 12 more` button. Expands inline; no modal, no individual card per tool.
+- **Proposed-plan row.** Its own `ProposedPlanCard`, not nested inside a message.
+- **Working row.** Three animated dots + a self-ticking `Working for 14s` timer.
+- **Turn divider** between turns: `────── Response • 2.4s ──────` chip, marking turn boundary and duration.
+
+Rendering discipline — four things that make it feel good:
+
+1. **Virtualized** with `@legendapp/list` (`LegendList`): `estimatedItemSize={90}`, `maintainScrollAtEnd`, `initialScrollAtEnd`. Handles long threads without stutter.
+2. **Structural sharing** via `useStableRows` → `computeStableMessagesTimelineRows` reuses prior row object refs when shallow-equal, so LegendList + React's memo boundaries skip untouched rows during streaming chunks.
+3. **Shared state via context, not props.** A `TimelineRowCtx` carries per-row callbacks + flags. `renderItem` has zero closure deps, so its reference is stable across streaming chunks.
+4. **Self-ticking leaf components.** `WorkingTimer` and `LiveMessageMeta` own their own `setInterval` state. An elapsed-time tick never re-renders the parent list.
+
+### Why Chamber's current pattern breaks down
+
+Three real problems t3code solves:
+
+1. **Noise.** Five tool calls = five cards. t3code's grouped work panel shows five one-line entries in a single bordered box. ~80% less chrome for the same information.
+2. **No turn structure.** In a long conversation, you can't tell where one turn ended and the next began. The `Response • Xs` divider fixes this and also gives the user a latency cue.
+3. **Symmetric styling hides who's talking.** User-as-bubble + assistant-as-prose is what nearly every current chat UI has settled on (ChatGPT, Claude, Cursor). Chamber's symmetric avatar+name pattern feels more like Slack than an agent surface.
+
+Additional wins worth stealing:
+
+- **Promote Lens side effects to first-class timeline rows.** When a Lens view mutation happens mid-conversation, instead of burying it in a tool block, render a `{ kind: "view-updated"; viewId; summary }` row — parallel to t3code's `proposed-plan` row. This is the shape Lens actually wants.
+- **Changed-files analog for view mutations.** Auto-append a `Modified N views` summary under the assistant message when a turn touched `.github/lens/`.
+- **Virtualization + structural sharing.** Chamber streams. A 50-turn conversation with streaming reasoning will jank without this.
+- **Live timers in isolated leaf components** so streaming doesn't trigger whole-list re-renders.
+
+### What's probably overkill to copy right now
+
+- `@legendapp/list` dependency — pick a virtualizer only when long threads actually jank. `react-virtuoso` is simpler if/when we need one.
+- The dual `MessagesTimeline.tsx` + `MessagesTimeline.browser.tsx` split (that's Vitest browser-mode plumbing).
+- t3code's `work` row icon taxonomy is coding-agent specific (Terminal, SquarePen, Wrench). Chamber's taxonomy should be Lens-oriented: `view.read`, `view.write`, `mind.invoke`, `lens.create`, etc.
+
+## The highest-leverage change
+
+Of everything above, one change gets ~80% of the visual improvement for ~20% of the effort, and is independent of the architectural rewrites: **replace the per-block `Collapsible` cards with a turn-level `WorkGroup`.**
+
+### What changes
+
+Today, in `StreamingMessage.tsx`, each assistant message renders its `blocks` as a flat list where each `reasoning` or `tool` block becomes its own `Collapsible`. Change the rendering pass to:
+
+1. Iterate blocks. Text blocks render as-is (markdown prose).
+2. Consecutive non-text blocks (reasoning + tool) accumulate into a single `WorkGroup`.
+3. Each non-text block becomes a **one-line entry** inside that group: icon + short heading + inline preview (first line of command, file path, etc.).
+4. If the group has >N entries (start at 6), show the last N with a `Show M more` button.
+5. Clicking an entry can still expand to show its full content inline — but the default is the compact line.
+
+### Why this is the right first move
+
+- **Purely additive at the data level.** No schema change. Existing `blocks` stream works unchanged.
+- **Localized.** Touches `StreamingMessage.tsx`, adds a `WorkGroup.tsx`, adjusts `ToolBlock.tsx` / `ReasoningBlock.tsx` to expose a compact line mode. Nothing outside `components/chat/` moves.
+- **Reversible.** Feature-flaggable behind a config key if we want A/B.
+- **Compounds with later work.** When we later introduce the full `MessagesTimelineRow` model, `WorkGroup` is already the UI for the eventual `kind: "work"` row — we're just moving where the grouping decision happens (from render-time to event-derivation-time).
+
+### Scope of the change
+
+Concretely, a ~1-day piece of work:
+
+- New `WorkEntry` type — what a one-liner looks like: `{ icon, heading, preview, detail, tone }`.
+- New `WorkGroup.tsx` component — bordered panel, compact header `Work log (N)`, last-N-visible truncation with "Show M more".
+- New `WorkEntryRow.tsx` — one-line icon + heading + preview, inline expand-to-detail on click.
+- Refactor `StreamingMessage.tsx` — group consecutive non-text blocks into a `WorkGroup`; render text blocks between groups.
+- Adapt `ToolBlock` / `ReasoningBlock` content renderers to be used inside `WorkEntryRow`'s expanded detail (reuse, don't rewrite).
+- Snapshot-style tests: given a synthetic block sequence, assert the flattened work group output.
+
+### What we deliberately defer
+
+- Turn boundaries / `Response • Xs` dividers → depends on turn metadata we don't all expose yet.
+- User-as-bubble asymmetric styling → design call, separate PR.
+- Virtualization → only when it matters.
+- Live elapsed timers → nice-to-have.
+- First-class `view-updated` timeline rows → depends on the bigger timeline refactor; tracked separately.
+
+### Rubber-duck check
+
+One thing to be careful about: **streaming blocks arrive incrementally, and a tool block's text can grow over many frames.** The grouping logic must be stable as new content arrives within an existing block (don't re-key), and must be stable when a new block appends at the end (don't re-key earlier rows). Use block `id` as the React key, not position. Today's code already keys by block id, so this carries over, but the `WorkGroup` wrapper needs a stable key derived from the first block's id in the group, not the group's index.
+
 ## Caveats
 
 - t3code is explicit WIP (see `CONTRIBUTING.md`). Their own design may still churn.
