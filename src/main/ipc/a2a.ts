@@ -3,6 +3,13 @@ import type { EventEmitter } from 'events';
 import type { AgentCardRegistry } from '../services/a2a/AgentCardRegistry';
 import type { TaskManager } from '../services/a2a/TaskManager';
 import type { TaskStatusUpdateEvent, TaskArtifactUpdateEvent } from '../services/a2a/types';
+import { withValidation } from './withValidation';
+import {
+  A2aCancelTaskArgs,
+  A2aGetTaskArgs,
+  A2aListAgentsArgs,
+  A2aListTasksArgs,
+} from '../../contracts/a2a';
 
 export function setupA2AIPC(
   ipcEmitter: EventEmitter,
@@ -36,20 +43,29 @@ export function setupA2AIPC(
     }
   });
 
-  ipcMain.handle('a2a:listAgents', async () => {
-    return agentCardRegistry.getCards();
-  });
+  ipcMain.handle(
+    'a2a:listAgents',
+    withValidation('a2a:listAgents', A2aListAgentsArgs, async () => agentCardRegistry.getCards()),
+  );
 
-  // Task query handlers
-  ipcMain.handle('a2a:getTask', async (_, taskId: string, historyLength?: number) => {
-    return taskManager.getTask(taskId, historyLength);
-  });
+  ipcMain.handle(
+    'a2a:getTask',
+    withValidation('a2a:getTask', A2aGetTaskArgs, async (_event, taskId, historyLength) => {
+      return taskManager.getTask(taskId, historyLength);
+    }),
+  );
 
-  ipcMain.handle('a2a:listTasks', async (_, filter?: { contextId?: string; status?: string }) => {
-    return taskManager.listTasks(filter);
-  });
+  ipcMain.handle(
+    'a2a:listTasks',
+    withValidation('a2a:listTasks', A2aListTasksArgs, async (_event, filter) => {
+      return taskManager.listTasks(filter);
+    }),
+  );
 
-  ipcMain.handle('a2a:cancelTask', async (_, taskId: string) => {
-    return taskManager.cancelTask(taskId);
-  });
+  ipcMain.handle(
+    'a2a:cancelTask',
+    withValidation('a2a:cancelTask', A2aCancelTaskArgs, async (_event, taskId) => {
+      return taskManager.cancelTask(taskId);
+    }),
+  );
 }

@@ -178,4 +178,18 @@ describe('A2A IPC', () => {
 
     await expect(handler[1]({}, 'task-1')).rejects.toThrow('Task task-1 not found');
   });
+
+  it('a2a:cancelTask rejects empty taskId with IpcValidationError', async () => {
+    const { IpcValidationError } = await import('../../contracts/errors');
+    const handleCalls = vi.mocked(ipcMain.handle).mock.calls;
+    const handler = handleCalls.find((c) => c[0] === 'a2a:cancelTask');
+    await expect(handler![1]({}, '')).rejects.toBeInstanceOf(IpcValidationError);
+  });
+
+  it('a2a:getTask rejects negative historyLength with IpcValidationError', async () => {
+    const { IpcValidationError } = await import('../../contracts/errors');
+    const handleCalls = vi.mocked(ipcMain.handle).mock.calls;
+    const handler = handleCalls.find((c) => c[0] === 'a2a:getTask');
+    await expect(handler![1]({}, 't1', -5)).rejects.toBeInstanceOf(IpcValidationError);
+  });
 });
