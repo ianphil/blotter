@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## v0.24.0 (2026-04-17)
+
+### Model picker
+
+- **Fresh model list on every mind connect/switch** — removed the `useRef` one-shot cache in `useAppSubscriptions` that prevented new SDK models from appearing until restart. Models now fetch fresh whenever the active mind changes. (#97)
 
 ### Repo hygiene
 
