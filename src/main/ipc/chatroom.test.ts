@@ -73,6 +73,20 @@ describe('Chatroom IPC', () => {
     expect(mockService.stopAll).toHaveBeenCalled();
   });
 
+  it('chatroom:send rejects empty message with IpcValidationError', async () => {
+    const { IpcValidationError } = await import('../../contracts/errors');
+    const handler = getHandler('chatroom:send');
+    await expect(handler({}, '')).rejects.toBeInstanceOf(IpcValidationError);
+    expect(mockService.broadcast).not.toHaveBeenCalled();
+  });
+
+  it('chatroom:clear rejects extra args', async () => {
+    const { IpcValidationError } = await import('../../contracts/errors');
+    const handler = getHandler('chatroom:clear');
+    await expect(handler({}, 'unexpected')).rejects.toBeInstanceOf(IpcValidationError);
+    expect(mockService.clearHistory).not.toHaveBeenCalled();
+  });
+
   it('chatroom:event forwarding sends to all windows', () => {
     const wc1 = { send: vi.fn() };
     const wc2 = { send: vi.fn() };

@@ -13,6 +13,24 @@ export {
   type ReasoningBlock,
 } from './blocks';
 
+import { ContentBlockSchema } from './blocks';
+
+export const ChatMessageSenderSchema = z.object({
+  mindId: z.string().min(1),
+  name: z.string().min(1),
+});
+export type ChatMessageSender = z.infer<typeof ChatMessageSenderSchema>;
+
+export const ChatMessageSchema = z.object({
+  id: MessageIdSchema,
+  role: z.enum(['user', 'assistant']),
+  blocks: z.array(ContentBlockSchema),
+  timestamp: z.number(),
+  isStreaming: z.boolean().optional(),
+  sender: ChatMessageSenderSchema.optional(),
+});
+export type ChatMessage = z.infer<typeof ChatMessageSchema>;
+
 export const ModelInfoSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1),
