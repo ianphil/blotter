@@ -18,9 +18,10 @@ describe('outbound push schemas', () => {
     ).toBe(true);
   });
 
-  it('mind:changed validates array of MindRecord', () => {
-    expect(MindChangedPushSchema.safeParse([{ id: 'a', path: '/tmp' }]).success).toBe(true);
-    expect(MindChangedPushSchema.safeParse(['nope']).success).toBe(false);
+  it('mind:changed validates object with minds array', () => {
+    expect(MindChangedPushSchema.safeParse({ minds: [{ id: 'a', path: '/tmp' }] }).success).toBe(true);
+    expect(MindChangedPushSchema.safeParse({ minds: ['nope'] }).success).toBe(false);
+    expect(MindChangedPushSchema.safeParse([{ id: 'a', path: '/tmp' }]).success).toBe(false);
   });
 
   it('auth:progress validates', () => {

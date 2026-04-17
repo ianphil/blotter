@@ -20,5 +20,24 @@
         "project": "./tsconfig.json"
       }
     }
-  }
+  },
+  "overrides": [
+    {
+      "files": ["src/main/rpc/**/*.ts", "src/main/rpc/**/*.tsx"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "paths": [
+              {
+                "name": "electron",
+                "message": "src/main/rpc/ must stay transport-agnostic and server-safe. Electron-specific concerns belong in src/main/ipc/ adapters."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
 }
+
