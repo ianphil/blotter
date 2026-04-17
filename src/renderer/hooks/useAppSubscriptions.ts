@@ -8,7 +8,6 @@ import { useAppState, useAppDispatch } from '../lib/store';
 export function useAppSubscriptions() {
   const { minds, activeMindId } = useAppState();
   const dispatch = useAppDispatch();
-  const modelsLoaded = useRef(false);
   const viewsLoaded = useRef(false);
 
   // Chat event listener — must stay alive regardless of active view
@@ -27,39 +26,41 @@ export function useAppSubscriptions() {
     return () => { unsub(); };
   }, [dispatch]);
 
-  // Reload views and models when active mind changes
+  // Reload views when active mind changes
   useEffect(() => {
-    modelsLoaded.current = false;
     viewsLoaded.current = false;
   }, [activeMindId]);
+
+  // Fetch models whenever active mind changes (no cache — always fresh)
+  useEffect(() => {
+    const connected = minds.length > 0 || !!activeMindId;
+    if (!connected) return;
+
+    const loadModels = async () => {
+      try {
+        const models = await window.electronAPI.chat.listModels();
+        dispatch({ type: 'SET_AVAILABLE_MODELS', payload: models });
+
+        const persisted = localStorage.getItem('chamber:selectedModel');
+        const valid = persisted && models.some(m => m.id === persisted);
+        if (!valid && models.length > 0) {
+          dispatch({ type: 'SET_SELECTED_MODEL', payload: models[0].id });
+        }
+      } catch (err) {
+        console.error('Failed to load models:', err);
+      }
+    };
+    loadModels();
+  }, [minds.length, activeMindId, dispatch]);
+
+  // Fetch discovered Lens views
   useEffect(() => {
     const connected = minds.length > 0 || !!activeMindId;
     if (!connected) {
-      modelsLoaded.current = false;
       viewsLoaded.current = false;
       return;
     }
 
-    if (!modelsLoaded.current) {
-      const loadModels = async () => {
-        try {
-          const models = await window.electronAPI.chat.listModels();
-          dispatch({ type: 'SET_AVAILABLE_MODELS', payload: models });
-          modelsLoaded.current = true;
-
-          const persisted = localStorage.getItem('chamber:selectedModel');
-          const valid = persisted && models.some(m => m.id === persisted);
-          if (!valid && models.length > 0) {
-            dispatch({ type: 'SET_SELECTED_MODEL', payload: models[0].id });
-          }
-        } catch (err) {
-          console.error('Failed to load models:', err);
-        }
-      };
-      loadModels();
-    }
-
-    // Fetch discovered Lens views
     if (!viewsLoaded.current) {
       const loadViews = async () => {
         try {
