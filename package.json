@@ -32,7 +32,7 @@
     "@electron-forge/plugin-vite": "^7.11.1",
     "@electron-forge/publisher-github": "^7.11.1",
     "@electron/fuses": "^1.8.0",
-    "@github/copilot-sdk": "^0.2.1",
+    "@github/copilot-sdk": "^0.2.2",
     "@tailwindcss/postcss": "^4.2.2",
     "@tailwindcss/typography": "^0.5.19",
     "@testing-library/jest-dom": "^6.9.1",
