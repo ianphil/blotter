@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync, unlinkSync } from 'fs';
 import { join } from 'path';
 import { decayScore, isStale } from '../lib/decay.mjs';
@@ -43,7 +44,7 @@ export function createMemoryTools(extDir, state) {
       },
       handler: async ({ tier, content, tags }) => {
         const entry = {
-          id: crypto.randomUUID(),
+          id: randomUUID(),
           tier,
           content,
           tags: tags || [],
