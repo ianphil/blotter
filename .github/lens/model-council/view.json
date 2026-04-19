@@ -1,0 +1,20 @@
+{
+  "id": "model-council",
+  "name": "Model Council",
+  "icon": "🏛️",
+  "view": "table",
+  "prompt": "Show the results of the most recent model council comparison. If no comparison has been run yet, show a welcome message explaining how to use model council. Format as a table with columns: Model, Response Summary (first 200 chars), Quality Score (1-10), Recommendation.",
+  "schema": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "properties": {
+        "model": { "type": "string" },
+        "responseSummary": { "type": "string" },
+        "qualityScore": { "type": "number" },
+        "recommendation": { "type": "string" }
+      }
+    }
+  },
+  "source": "prompt"
+}
