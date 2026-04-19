@@ -1,0 +1,6 @@
+{
+  "name": "scanner",
+  "version": "0.1.0",
+  "description": "M365 signal scanner — continuous email and Teams monitoring via WorkIQ",
+  "type": "module"
+}
