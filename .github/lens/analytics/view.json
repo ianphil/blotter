@@ -14,5 +14,5 @@
       "topSenders": { "type": "array" }
     }
   },
-  "source": "prompt"
+  "source": "data.json"
 }
