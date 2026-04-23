@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { TaskManager } from './TaskManager';
 import type { TaskSessionFactory } from './TaskManager';
+import type { UserInputHandler } from '../mind/types';
 import type { AgentCard, SendMessageRequest, TaskState, Message, TaskStatusUpdateEvent, TaskArtifactUpdateEvent, Artifact } from './types';
 import type { AgentCardRegistry } from './AgentCardRegistry';
 
@@ -412,7 +413,7 @@ describe('TaskManager', () => {
   // ---------------------------------------------------------------------------
 
   describe('input-required flow', () => {
-    let capturedOnUserInputRequest: ((prompt: string) => Promise<{ answer: string; wasFreeform: boolean }>) | undefined;
+    let capturedOnUserInputRequest: UserInputHandler | undefined;
 
     beforeEach(() => {
       capturedOnUserInputRequest = undefined;
@@ -432,7 +433,7 @@ describe('TaskManager', () => {
       // Trigger the input-required callback (simulates agent calling ask_user)
       expect(capturedOnUserInputRequest).toBeDefined();
       if (!capturedOnUserInputRequest) throw new Error('Expected callback');
-      capturedOnUserInputRequest('What is your name?');
+      capturedOnUserInputRequest({ question: 'What is your name?' }, { sessionId: 'sess-1' });
       await flushPromises();
 
       const fetched = tm.getTask(task.id);
@@ -449,13 +450,13 @@ describe('TaskManager', () => {
       await flushPromises();
 
       if (!capturedOnUserInputRequest) throw new Error('Expected callback');
-      capturedOnUserInputRequest('Need info');
+      capturedOnUserInputRequest({ question: 'Need info' }, { sessionId: 'sess-1' });
       await flushPromises();
 
       const inputRequiredEvent = events.find((e) => e.status.state === 'input-required');
       expect(inputRequiredEvent).toBeDefined();
-      expect(inputRequiredEvent.status.message).toBeDefined();
-      expect(inputRequiredEvent.status.message.parts[0].text).toBe('Need info');
+      expect(inputRequiredEvent!.status.message).toBeDefined();
+      expect(inputRequiredEvent!.status.message!.parts[0].text).toBe('Need info');
     });
 
 
@@ -465,7 +466,7 @@ describe('TaskManager', () => {
 
       // Trigger input-required and capture the promise
       if (!capturedOnUserInputRequest) throw new Error('Expected callback');
-      const inputPromise = capturedOnUserInputRequest('Pick a color');
+      const inputPromise = capturedOnUserInputRequest({ question: 'Pick a color' }, { sessionId: 'sess-1' });
       await flushPromises();
 
       // Resume with user answer
@@ -488,7 +489,7 @@ describe('TaskManager', () => {
       await flushPromises();
 
       if (!capturedOnUserInputRequest) throw new Error('Expected callback');
-      capturedOnUserInputRequest('Confirm?');
+      capturedOnUserInputRequest({ question: 'Confirm?' }, { sessionId: 'sess-1' });
       await flushPromises();
 
       const answerMessage: Message = {
@@ -533,7 +534,7 @@ describe('TaskManager', () => {
       await flushPromises();
 
       if (!capturedOnUserInputRequest) throw new Error('Expected callback');
-      capturedOnUserInputRequest('Pick a color');
+      capturedOnUserInputRequest({ question: 'Pick a color' }, { sessionId: 'sess-1' });
       await flushPromises();
 
       const answerMessage: Message = {
@@ -571,7 +572,7 @@ describe('TaskManager', () => {
 
       // Agent asks for input
       if (!capturedOnUserInputRequest) throw new Error('Expected callback');
-      const inputPromise = capturedOnUserInputRequest('What color?');
+      const inputPromise = capturedOnUserInputRequest({ question: 'What color?' }, { sessionId: 'sess-1' });
       await flushPromises();
 
       const taskAfterInput = tm.getTask(task.id);
