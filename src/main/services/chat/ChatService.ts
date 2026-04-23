@@ -4,7 +4,7 @@
 import type { MindManager } from '../mind';
 import type { ChatEvent, ModelInfo } from '../../../shared/types';
 import type { CopilotSession } from '../mind/types';
-import { isStaleSessionError } from '../../../shared/sessionErrors';
+import { isStaleSessionError, SEND_TIMEOUT_MS, DEFAULT_TURN_TIMEOUT_MS, sendTimeoutError } from '../../../shared/sessionErrors';
 import { TurnQueue } from './TurnQueue';
 
 export class ChatService {
@@ -136,7 +136,7 @@ export class ChatService {
       // that fire synchronously inside session.send (regression-test guarded).
       let turnDoneTimerId: ReturnType<typeof setTimeout> | undefined;
       const turnDone = new Promise<void>((resolve, reject) => {
-        turnDoneTimerId = setTimeout(resolve, 300_000);
+        turnDoneTimerId = setTimeout(resolve, DEFAULT_TURN_TIMEOUT_MS);
 
         const unsubIdle = session.on('session.idle', () => {
           if (turnDoneTimerId) clearTimeout(turnDoneTimerId);
@@ -163,10 +163,7 @@ export class ChatService {
       // outer catch can recreate the session and retry.
       let sendTimerId: ReturnType<typeof setTimeout> | undefined;
       const sendTimeout = new Promise<never>((_, reject) => {
-        sendTimerId = setTimeout(
-          () => reject(new Error('Session not found: send() timed out')),
-          30_000,
-        );
+        sendTimerId = setTimeout(() => reject(sendTimeoutError()), SEND_TIMEOUT_MS);
       });
       try {
         await Promise.race([session.send({ prompt }), sendTimeout]);

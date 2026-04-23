@@ -3,7 +3,7 @@ import type { MindContext } from '../../../../shared/types';
 import type { ChatroomStreamEvent, OrchestrationMode, ChatroomMessage } from '../../../../shared/chatroom-types';
 import type { OrchestrationContext } from './types';
 import type { CopilotSession } from '../../mind';
-import { isStaleSessionError } from '../../../../shared/sessionErrors';
+import { isStaleSessionError, SEND_TIMEOUT_MS, DEFAULT_TURN_TIMEOUT_MS, sendTimeoutError } from '../../../../shared/sessionErrors';
 
 // ---------------------------------------------------------------------------
 // TurnTimeoutError — distinguishable timeout for callers
@@ -141,7 +141,7 @@ export async function streamAgentTurn(opts: StreamAgentOptions): Promise<StreamA
   // The turnDone timeout ID is hoisted so it can be cleared on any exit path
   // (send timeout, abort, or normal completion) to prevent 5-minute timer leaks.
   let turnDoneTimeoutId: ReturnType<typeof setTimeout> | undefined;
-  const turnTimeoutMs = opts.turnTimeout ?? 300_000;
+  const turnTimeoutMs = opts.turnTimeout ?? DEFAULT_TURN_TIMEOUT_MS;
   const turnDone = new Promise<void>((resolve, reject) => {
     turnDoneTimeoutId = setTimeout(
       () => reject(new TurnTimeoutError(turnTimeoutMs)),
@@ -170,7 +170,7 @@ export async function streamAgentTurn(opts: StreamAgentOptions): Promise<StreamA
 
   let sendTimerId: ReturnType<typeof setTimeout> | undefined;
   const sendTimeout = new Promise<never>((_, reject) => {
-    sendTimerId = setTimeout(() => reject(new Error('Session not found')), 30_000);
+    sendTimerId = setTimeout(() => reject(sendTimeoutError()), SEND_TIMEOUT_MS);
   });
   try {
     await Promise.race([session.send({ prompt }), sendTimeout]);
