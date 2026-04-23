@@ -10,7 +10,7 @@ import { ConfigService } from './main/services/config';
 import { AuthService } from './main/services/auth';
 import { MindScaffold } from './main/services/genesis';
 import { ViewDiscovery } from './main/services/lens';
-import { MindManager } from './main/services/mind';
+import { MindManager, type ToolBuilder } from './main/services/mind';
 import { ChatService } from './main/services/chat/ChatService';
 import { TurnQueue } from './main/services/chat/TurnQueue';
 import { AgentCardRegistry, MessageRouter, TaskManager, buildSessionTools } from './main/services/a2a';
@@ -67,13 +67,13 @@ const turnQueue = new TurnQueue();
 // Uses late-bound taskManager reference to break circular dependency
 // eslint-disable-next-line prefer-const
 let taskManager: TaskManager;
-const toolBuilder = (mindId: string, extensionTools: unknown[]) =>
+const toolBuilder: ToolBuilder = (mindId, extensionTools) =>
   buildSessionTools(mindId, extensionTools as SessionTool[], messageRouter, agentCardRegistry, taskManager);
 
-const mindManager = new MindManager(clientFactory, identityLoader, extensionLoader, configService, viewDiscovery, toolBuilder);
+const mindManager: MindManager = new MindManager(clientFactory, identityLoader, extensionLoader, configService, viewDiscovery, toolBuilder);
 taskManager = new TaskManager(mindManager, agentCardRegistry);
-const chatService = new ChatService(mindManager, turnQueue);
-const messageRouter = new MessageRouter(chatService, agentCardRegistry, a2aEventBus);
+const chatService: ChatService = new ChatService(mindManager, turnQueue);
+const messageRouter: MessageRouter = new MessageRouter(chatService, agentCardRegistry, a2aEventBus);
 const chatroomService = new ChatroomService(mindManager);
 
 wireLifecycleEvents({ mindManager, agentCardRegistry, taskManager, a2aEventBus });
@@ -154,7 +154,7 @@ app.on('ready', async () => {
   createWindow();
 
   // Restore minds async — awaitRestore() lets IPC handlers wait for completion
-  mindManager.restoreFromConfig().catch((err) => {
+  mindManager.restoreFromConfig().catch((err: unknown) => {
     console.error('[main] Failed to restore minds:', err);
   });
 });

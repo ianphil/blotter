@@ -324,8 +324,11 @@ export class ChatroomService extends EventEmitter {
 
   private listenToFactoryEvents(): void {
     if (this.sessionFactory.on) {
-      this.sessionFactory.on('mind:unloaded', (mindId: string) => {
-        this.handleMindUnloaded(mindId);
+      // MindManager's EventEmitter uses Node's generic listener signature `(...args: unknown[])`,
+      // so we unpack the first argument positionally. Runtime payload is always `mindId: string`
+      // as emitted from MindManager.unloadMind.
+      this.sessionFactory.on('mind:unloaded', (...args: unknown[]) => {
+        this.handleMindUnloaded(args[0] as string);
       });
     }
   }

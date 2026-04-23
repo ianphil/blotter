@@ -4,8 +4,9 @@
 import { EventEmitter } from 'events';
 import * as fs from 'fs';
 import * as path from 'path';
+import type { BrowserWindow } from 'electron';
 import type { MindContext, AppConfig, MindRecord } from '../../../shared/types';
-import type { InternalMindContext, CopilotClient, CopilotSession } from './types';
+import type { InternalMindContext, CopilotClient, CopilotSession, Tool } from './types';
 import { generateMindId } from './generateMindId';
 import type { CopilotClientFactory } from '../sdk/CopilotClientFactory';
 import type { IdentityLoader } from '../chat/IdentityLoader';
@@ -13,11 +14,13 @@ import type { ExtensionLoader } from '../extensions/ExtensionLoader';
 import type { ConfigService } from '../config/ConfigService';
 import type { ViewDiscovery } from '../lens/ViewDiscovery';
 
+export type ToolBuilder = (mindId: string, extensionTools: Tool[]) => Tool[];
+
 export class MindManager extends EventEmitter {
   private minds = new Map<string, InternalMindContext>();
   private pathToId = new Map<string, string>();
   private loading = new Map<string, Promise<MindContext>>();
-  private windowByMind = new Map<string, { focus: () => void; close: () => void; on: (event: string, cb: () => void) => void }>();
+  private windowByMind = new Map<string, BrowserWindow>();
   private activeMindId: string | null = null;
   private restorePromise: Promise<void> | null = null;
   private reloading = false;
@@ -28,7 +31,7 @@ export class MindManager extends EventEmitter {
     private readonly extensionLoader: ExtensionLoader,
     private readonly configService: ConfigService,
     private readonly viewDiscovery: ViewDiscovery,
-    private readonly toolBuilder?: (mindId: string, extensionTools: unknown[]) => unknown[],
+    private readonly toolBuilder?: ToolBuilder,
   ) {
     super();
   }
@@ -152,7 +155,7 @@ export class MindManager extends EventEmitter {
 
   // --- Window management ---
 
-  attachWindow(mindId: string, win: { focus: () => void; close: () => void; on: (event: string, cb: () => void) => void }): void {
+  attachWindow(mindId: string, win: BrowserWindow): void {
     if (!this.minds.has(mindId)) return;
     this.windowByMind.set(mindId, win);
     win.on('closed', () => this.detachWindow(mindId));
@@ -164,7 +167,7 @@ export class MindManager extends EventEmitter {
     this.emit('mind:unwindowed', mindId);
   }
 
-  getWindow(mindId: string): { focus: () => void; close: () => void } | null {
+  getWindow(mindId: string): BrowserWindow | null {
     return this.windowByMind.get(mindId) ?? null;
   }
 
@@ -176,7 +179,7 @@ export class MindManager extends EventEmitter {
     const context = this.minds.get(mindId);
     if (!context) throw new Error(`Mind ${mindId} not found`);
 
-    const tools = context.extensions.flatMap((e: { tools?: unknown[] }) => e.tools ?? []);
+    const tools: Tool[] = context.extensions.flatMap((e) => e.tools);
     const sessionTools = this.toolBuilder ? this.toolBuilder(mindId, tools) : tools;
     context.session = await this.createSessionForMind(
       context.client, context.mindPath, context.identity.systemMessage, sessionTools,
@@ -283,7 +286,7 @@ export class MindManager extends EventEmitter {
     const context = this.minds.get(mindId);
     if (!context) throw new Error(`Mind ${mindId} not found`);
 
-    const tools = context.extensions.flatMap((e: { tools?: unknown[] }) => e.tools ?? []);
+    const tools: Tool[] = context.extensions.flatMap((e) => e.tools);
     const sessionTools = this.toolBuilder ? this.toolBuilder(mindId, tools) : tools;
 
     return this.createSessionForMind(
@@ -299,7 +302,7 @@ export class MindManager extends EventEmitter {
     const context = this.minds.get(mindId);
     if (!context) throw new Error(`Mind ${mindId} not found`);
 
-    const tools = context.extensions.flatMap((e: { tools?: unknown[] }) => e.tools ?? []);
+    const tools: Tool[] = context.extensions.flatMap((e) => e.tools);
     const sessionTools = this.toolBuilder ? this.toolBuilder(mindId, tools) : tools;
 
     return this.createSessionForMind(
@@ -314,7 +317,7 @@ export class MindManager extends EventEmitter {
     client: CopilotClient,
     mindPath: string,
     systemMessage: string,
-    tools: unknown[],
+    tools: Tool[],
     onUserInputRequest?: (prompt: string) => Promise<{ answer: string; wasFreeform: boolean }>,
   ): Promise<CopilotSession> {
     return client.createSession({
