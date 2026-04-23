@@ -10,7 +10,7 @@
     "package": "node scripts/prepare-node-runtime.js && electron-forge package",
     "make": "node scripts/prepare-node-runtime.js && electron-forge make",
     "publish": "node scripts/prepare-node-runtime.js && electron-forge publish",
-    "lint": "eslint .",
+    "lint": "tsc --noEmit && eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
