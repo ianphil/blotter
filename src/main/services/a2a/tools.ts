@@ -13,7 +13,16 @@ export interface SessionTool {
 
 export function buildSessionTools(
   mindId: string,
-  extensionTools: SessionTool[],
+  sessionTools: SessionTool[],
+  messageRouter: MessageRouter,
+  agentCardRegistry: AgentCardRegistry,
+  taskManager: TaskManager,
+): SessionTool[] {
+  return [...sessionTools, ...buildA2ATools(mindId, messageRouter, agentCardRegistry, taskManager)];
+}
+
+export function buildA2ATools(
+  mindId: string,
   messageRouter: MessageRouter,
   agentCardRegistry: AgentCardRegistry,
   taskManager: TaskManager,
@@ -62,7 +71,7 @@ export function buildSessionTools(
     },
   };
 
-  return [...extensionTools, sendMessage, listAgents, ...buildTaskTools(mindId, taskManager)];
+  return [sendMessage, listAgents, ...buildTaskTools(mindId, taskManager)];
 }
 
 const VALID_TASK_STATES: Set<string> = new Set([
