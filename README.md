@@ -27,6 +27,7 @@ Chamber is where that happens. Your agent wakes up, finds its voice, and prepare
 - **Prompt-driven views** — click Refresh, the agent gathers data and populates the view. Edit the prompt to change what it shows.
 - **Write-back** — type instructions in the action bar on any view. The agent modifies the data.
 - **Self-extending** — the agent has a Lens skill. Ask it to "create a view for my cron jobs" and it builds one.
+- **Built-in canvas** — render HTML dashboards, reports, and forms in the browser with live reload and a simple action back-channel.
 - **Built-in cron** — schedule prompt, process, webhook, and notification jobs per mind without installing per-mind extensions.
 - **Activity bar** — VS Code-style icon strip. Icons appear as views are discovered.
 - **Streaming chat** — real-time responses with markdown, tool calls, and reasoning blocks.
@@ -50,6 +51,7 @@ Select a mind directory from the sidebar. The agent connects, views appear, and 
 ```
 Electron Main Process
 ├── CopilotClientFactory — per-mind CopilotClient lifecycle
+├── CanvasService       — browser-rendered HTML canvases with live reload
 ├── CronService         — built-in scheduled jobs and durable run history
 ├── ChatService         — streaming sessions, background prompts
 ├── ChatroomService     — multi-agent broadcast, orchestration strategy dispatch
