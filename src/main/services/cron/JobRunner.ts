@@ -12,6 +12,13 @@ const DEFAULT_PROMPT_TIMEOUT_MS = 120_000;
 const DEFAULT_PROCESS_TIMEOUT_MS = 60_000;
 const DEFAULT_WEBHOOK_TIMEOUT_MS = 10_000;
 
+// Intentionally includes 'auth-required' and 'input-required' unlike
+// TaskManager.TERMINAL_STATES — cron jobs are unattended and cannot
+// provide credentials or answer input requests, so these are terminal.
+const CRON_TERMINAL_STATES: ReadonlySet<TaskState> = new Set([
+  'completed', 'failed', 'canceled', 'rejected', 'auth-required', 'input-required',
+]);
+
 export interface PromptJobResult {
   status: CronRunStatus;
   taskId: string;
@@ -215,6 +222,6 @@ export class JobRunner {
   }
 
   private isTerminal(state: TaskState): boolean {
-    return ['completed', 'failed', 'canceled', 'rejected', 'auth-required', 'input-required'].includes(state);
+    return CRON_TERMINAL_STATES.has(state);
   }
 }

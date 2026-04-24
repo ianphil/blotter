@@ -1,5 +1,6 @@
 export type CronJobType = 'prompt' | 'shell' | 'webhook' | 'notification';
 export type CronRunStatus = 'completed' | 'failed' | 'timed-out' | 'skipped';
+export type RunSource = 'scheduled' | 'manual' | 'resume';
 
 export interface PromptJobPayload {
   recipient?: string;
@@ -55,14 +56,20 @@ export type CronJobPayload =
   | WebhookJobPayload
   | NotificationJobPayload;
 
-export interface CreateCronJobInput {
+interface CreateCronJobInputBase<TType extends CronJobType, TPayload> {
   name: string;
   schedule: string;
-  type: CronJobType;
-  payload: CronJobPayload;
+  type: TType;
+  payload: TPayload;
   enabled?: boolean;
   timeoutMs?: number;
 }
+
+export type CreateCronJobInput =
+  | CreateCronJobInputBase<'prompt', PromptJobPayload>
+  | CreateCronJobInputBase<'shell', ShellJobPayload>
+  | CreateCronJobInputBase<'webhook', WebhookJobPayload>
+  | CreateCronJobInputBase<'notification', NotificationJobPayload>;
 
 export interface CronJobRunRecord {
   id: string;
@@ -75,7 +82,7 @@ export interface CronJobRunRecord {
   taskId?: string;
   output?: string;
   error?: string;
-  source: 'scheduled' | 'manual' | 'resume';
+  source: RunSource;
 }
 
 export type CronJobListEntry = CronJob & {

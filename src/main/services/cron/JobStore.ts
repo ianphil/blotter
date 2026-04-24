@@ -15,6 +15,9 @@ const RUNS_FILE = 'cron-runs.json';
 const DEFAULT_RUN_LIMIT = 50;
 
 export class JobStore {
+  private jobsCache: StoredCronJobs | null = null;
+  private runsCache: StoredCronRuns | null = null;
+
   constructor(
     private readonly mindPath: string,
     private readonly runLimit = DEFAULT_RUN_LIMIT,
@@ -30,14 +33,12 @@ export class JobStore {
 
   createJob(input: CreateCronJobInput): CronJob {
     const now = new Date().toISOString();
-    const job: CronJob = {
+    // CreateCronJobInput is a discriminated union that correlates type + payload,
+    // so spreading preserves the discriminant and makes the assertion safe.
+    const job = {
       id: `cron-${randomUUID()}`,
-      name: input.name,
-      schedule: input.schedule,
-      type: input.type,
-      payload: input.payload,
+      ...input,
       enabled: input.enabled ?? true,
-      timeoutMs: input.timeoutMs,
       createdAt: now,
       updatedAt: now,
     } as CronJob;
@@ -115,18 +116,24 @@ export class JobStore {
   }
 
   private readJobs(): StoredCronJobs {
-    return this.readJson(this.getJobsPath(), { jobs: [] });
+    if (this.jobsCache) return this.jobsCache;
+    this.jobsCache = this.readJson(this.getJobsPath(), { jobs: [] });
+    return this.jobsCache;
   }
 
   private writeJobs(state: StoredCronJobs): void {
+    this.jobsCache = state;
     this.writeJson(this.getJobsPath(), state);
   }
 
   private readRuns(): StoredCronRuns {
-    return this.readJson(this.getRunsPath(), { runs: {} });
+    if (this.runsCache) return this.runsCache;
+    this.runsCache = this.readJson(this.getRunsPath(), { runs: {} });
+    return this.runsCache;
   }
 
   private writeRuns(state: StoredCronRuns): void {
+    this.runsCache = state;
     this.writeJson(this.getRunsPath(), state);
   }
 

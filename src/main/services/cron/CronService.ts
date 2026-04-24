@@ -6,9 +6,7 @@ import { JobStore } from './JobStore';
 import { JobRunner } from './JobRunner';
 import { Scheduler, validateSchedule } from './Scheduler';
 import { buildCronTools } from './tools';
-import type { CreateCronJobInput, CronJob, CronJobListEntry, CronJobPayload, CronJobRunRecord, CronJobType } from './types';
-
-type RunSource = 'scheduled' | 'manual' | 'resume';
+import type { CreateCronJobInput, CronJob, CronJobListEntry, CronJobPayload, CronJobRunRecord, CronJobType, RunSource } from './types';
 
 function requireString(payload: Record<string, unknown>, field: string, jobType: string): void {
   if (typeof payload[field] !== 'string' || (payload[field] as string).trim() === '') {
@@ -40,6 +38,9 @@ interface CronServiceOptions {
   showMind: (mindId: string) => void;
 }
 
+// TODO: Consider extracting execution coordination (runJob, inFlightJobs,
+// handlePowerResume) into a dedicated CronExecutor to improve SRP adherence.
+// See: https://github.com/ianphil/chamber/issues/TBD
 export class CronService implements ChamberToolProvider {
   private readonly stores = new Map<string, JobStore>();
   private readonly schedulers = new Map<string, Scheduler>();
@@ -52,7 +53,6 @@ export class CronService implements ChamberToolProvider {
   }
 
   getToolsForMind(mindId: string, mindPath: string): Tool[] {
-    this.mindPaths.set(mindId, mindPath);
     return buildCronTools(mindId, mindPath, this) as Tool[];
   }
 
@@ -65,6 +65,9 @@ export class CronService implements ChamberToolProvider {
     }
   }
 
+  // Note: releaseMind stops schedulers and clears in-flight tracking, but does
+  // not await in-progress runJob promises. For a desktop app, process exit handles
+  // cleanup. If CronService is ever used server-side, add graceful drain here.
   async releaseMind(mindId: string): Promise<void> {
     this.schedulers.get(mindId)?.stopAll();
     this.schedulers.delete(mindId);
@@ -102,18 +105,14 @@ export class CronService implements ChamberToolProvider {
   enableJob(mindId: string, jobId: string): CronJobListEntry {
     const store = this.requireStore(mindId);
     const job = store.updateJob(jobId, (existing) => ({ ...existing, enabled: true }));
-    const scheduler = this.ensureScheduler(mindId);
-    this.scheduleJob(mindId, job, scheduler);
-    scheduler.resume(jobId);
+    this.scheduleJob(mindId, job);
     return this.toListEntry(mindId, job);
   }
 
   disableJob(mindId: string, jobId: string): CronJobListEntry {
     const store = this.requireStore(mindId);
     const job = store.updateJob(jobId, (existing) => ({ ...existing, enabled: false }));
-    const scheduler = this.ensureScheduler(mindId);
-    this.scheduleJob(mindId, job, scheduler);
-    scheduler.pause(jobId);
+    this.scheduleJob(mindId, job);
     return this.toListEntry(mindId, job);
   }
 
@@ -132,7 +131,11 @@ export class CronService implements ChamberToolProvider {
         if (!job.enabled) continue;
         const nextRun = this.schedulers.get(mindId)?.nextRun(job.id);
         if (!nextRun || nextRun > now) continue;
-        await this.runJob(mindId, job.id, 'resume');
+        try {
+          await this.runJob(mindId, job.id, 'resume');
+        } catch (err) {
+          console.error(`[cron] Resume catch-up failed for job ${job.id} in mind ${mindId}:`, err);
+        }
       }
     }
   }

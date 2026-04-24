@@ -11,16 +11,6 @@ export interface SessionTool {
   handler: (args: Record<string, unknown>) => Promise<unknown>;
 }
 
-export function buildSessionTools(
-  mindId: string,
-  sessionTools: SessionTool[],
-  messageRouter: MessageRouter,
-  agentCardRegistry: AgentCardRegistry,
-  taskManager: TaskManager,
-): SessionTool[] {
-  return [...sessionTools, ...buildA2ATools(mindId, messageRouter, agentCardRegistry, taskManager)];
-}
-
 export function buildA2ATools(
   mindId: string,
   messageRouter: MessageRouter,

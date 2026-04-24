@@ -12,8 +12,8 @@ export class A2aToolProvider implements ChamberToolProvider {
     private readonly taskManager: TaskManager,
   ) {}
 
-  getToolsForMind(mindId: string, mindPath: string): Tool[] {
-    void mindPath;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  getToolsForMind(mindId: string, _mindPath: string): Tool[] {
     return buildA2ATools(
       mindId,
       this.messageRouter,
