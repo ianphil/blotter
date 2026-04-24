@@ -83,7 +83,7 @@ export function MindSidebar() {
   if (minds.length === 0) return null;
 
   return (
-    <div className="relative bg-card/50 border-r border-border flex flex-col shrink-0" style={{ width }}>
+    <div className="relative bg-card border border-border rounded-xl overflow-hidden flex flex-col shrink-0" style={{ width }}>
       {/* Resize handle */}
       <div
         onMouseDown={handleMouseDown}

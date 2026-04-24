@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.28.0 (2026-04-24)
+
+### Floating panel UI
+
+- **Rounded, spaced panels** — activity bar, agents sidebar, and main content now float on the window with rounded corners and a gap between them, instead of sharing edges.
+- **Subtle navy tint** — background, card, border, and interactive surface tokens share a single navy hue so panels and controls feel cohesive instead of clashing with the chat input.
+
+### Chat input
+
+- **Grows to 13 lines, then scrolls** — the textarea resizes based on its own computed line-height and keeps the caret visible once capped, fixing a bug where `flex-1` pinned the textarea to minimum height and scrolled immediately.
+- **Paste images** — pasting an image into the chat input inserts an inline `[📷 name]` placeholder at the caret and attaches the image for send. Attachments are forwarded to the SDK as blob attachments (base64 + MIME) and render inline in the user's message bubble in the transcript. Removing the `[📷 ...]` token from the text drops its attachment.
+
 ## v0.27.0 (2026-04-23)
 
 ### Built-in canvas
