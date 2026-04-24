@@ -24,6 +24,22 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled, availableMode
   const [input, setInput] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const getMaxHeight = useCallback((el: HTMLTextAreaElement) => {
+    const lineHeight = parseFloat(getComputedStyle(el).lineHeight) || 20;
+    return Math.round(lineHeight * 13);
+  }, []);
+
+  const resize = useCallback((el: HTMLTextAreaElement) => {
+    const maxHeight = getMaxHeight(el);
+    el.style.height = 'auto';
+    const newHeight = Math.min(el.scrollHeight, maxHeight);
+    el.style.height = newHeight + 'px';
+    el.style.maxHeight = maxHeight + 'px';
+    if (el.scrollHeight > maxHeight) {
+      el.scrollTop = el.scrollHeight;
+    }
+  }, [getMaxHeight]);
+
   const handleSubmit = useCallback(() => {
     if (isStreaming) {
       onStop();
@@ -47,10 +63,7 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled, availableMode
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
-    // Auto-resize
-    const el = e.target;
-    el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 200) + 'px';
+    resize(e.target);
   };
 
   return (
@@ -65,7 +78,7 @@ export function ChatInput({ onSend, onStop, isStreaming, disabled, availableMode
             placeholder={disabled ? 'Select a mind directory to start…' : (placeholder ?? 'Message your agent…')}
             disabled={disabled}
             rows={1}
-            className="flex-1 bg-transparent text-sm resize-none outline-none placeholder:text-muted-foreground disabled:opacity-50 max-h-[200px]"
+            className="w-full bg-transparent text-sm resize-none outline-none placeholder:text-muted-foreground disabled:opacity-50 overflow-y-auto"
           />
 
           <div className="flex items-center justify-between">
