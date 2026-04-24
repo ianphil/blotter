@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, powerMonitor, type Tray as ElectronTray } from 'electron';
+import { app, BrowserWindow, ipcMain, powerMonitor, type NativeImage, type Tray as ElectronTray } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 
@@ -15,7 +15,7 @@ import { TurnQueue } from './main/services/chat/TurnQueue';
 import { A2aToolProvider, AgentCardRegistry, MessageRouter, TaskManager } from './main/services/a2a';
 import { ChatroomService } from './main/services/chatroom';
 import { CronService } from './main/services/cron';
-import { createAppTray } from './main/tray/Tray';
+import { createAppTray, loadAppIcon } from './main/tray/Tray';
 
 // IPC adapters
 import { setupChatIPC } from './main/ipc/chat';
@@ -85,6 +85,7 @@ viewDiscovery.setRefreshHandler({
 
 let mainWindow: BrowserWindow | null = null;
 let appTray: ElectronTray | null = null;
+let windowIcon: NativeImage | undefined;
 let isQuitting = false;
 const shouldMinimizeToTray = process.platform === 'win32';
 
@@ -126,6 +127,7 @@ const createWindow = () => {
       symbolColor: '#fafafa',
       height: 36,
     } : undefined,
+    icon: windowIcon,
     backgroundColor: '#09090b',
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -166,12 +168,15 @@ const createWindow = () => {
 };
 
 app.on('ready', async () => {
+  windowIcon = await loadAppIcon();
+
   // --- IPC adapters (thin, parameter-injected) ---
   setupChatIPC(chatService, mindManager);
   setupMindIPC(mindManager, {
     preloadPath: path.join(__dirname, 'preload.js'),
     devServerUrl: MAIN_WINDOW_VITE_DEV_SERVER_URL || undefined,
     rendererPath: MAIN_WINDOW_VITE_DEV_SERVER_URL ? undefined : path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
+    windowIcon,
   });
   setupLensIPC(viewDiscovery, mindManager);
   setupGenesisIPC(mindManager, scaffold);
@@ -193,7 +198,7 @@ app.on('ready', async () => {
     appTray = createAppTray({
       showMainWindow,
       quit: requestQuit,
-    });
+    }, windowIcon);
   }
   powerMonitor.on('resume', () => {
     void cronService.handlePowerResume();
