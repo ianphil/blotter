@@ -26,7 +26,7 @@ export function ActivityBar() {
   const dispatch = useAppDispatch();
 
   return (
-    <div className="w-12 bg-card border-r border-border flex flex-col items-center py-2 shrink-0">
+    <div className="w-12 bg-card border border-border rounded-xl flex flex-col items-center py-2 shrink-0">
       <div className="flex flex-col items-center gap-1 flex-1">
         {/* Chat — always present */}
         <Tooltip delayDuration={300}>
