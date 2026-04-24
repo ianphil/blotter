@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.27.0 (2026-04-23)
+
+### Built-in canvas
+
+- **CanvasService** — Chamber now ships canvas as a first-class main-process service instead of a per-mind `.github/extensions/canvas` adapter.
+- **Shared localhost canvas server** — one built-in HTTP server serves canvases for all loaded minds with mind-scoped URLs and server-sent-event live reload.
+- **Per-mind canvas content** — rendered files now live in `<mindPath>/.chamber/canvas/` instead of under `.github/extensions/canvas/data/content/`.
+- **Canvas tools restored** — minds once again get `canvas_show`, `canvas_update`, `canvas_close`, and `canvas_list`.
+- **Default browser launch** — canvas pages now open via Electron in the user's default browser instead of hardcoding Microsoft Edge.
+
+### Runtime architecture
+
+- **CanvasServer** — pure Node HTTP server with bridge-script injection, SSE reload, and browser action POST back-channel.
+- **ChamberToolProvider reuse** — canvas now plugs into the same provider seam used by cron and A2A instead of reviving the deleted extension loader.
+
 ## v0.26.0 (2026-04-23)
 
 ### Built-in cron

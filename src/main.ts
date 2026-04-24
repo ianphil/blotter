@@ -14,6 +14,7 @@ import { ChatService } from './main/services/chat/ChatService';
 import { TurnQueue } from './main/services/chat/TurnQueue';
 import { A2aToolProvider, AgentCardRegistry, MessageRouter, TaskManager } from './main/services/a2a';
 import { ChatroomService } from './main/services/chatroom';
+import { CanvasService } from './main/services/canvas';
 import { CronService } from './main/services/cron';
 import { createAppTray, loadAppIcon } from './main/tray/Tray';
 
@@ -65,6 +66,7 @@ const taskManager = new TaskManager(mindManager, agentCardRegistry);
 const chatService: ChatService = new ChatService(mindManager, turnQueue);
 const messageRouter: MessageRouter = new MessageRouter(chatService, agentCardRegistry, a2aEventBus);
 const chatroomService = new ChatroomService(mindManager);
+const canvasService = new CanvasService();
 const cronService = new CronService({
   getTaskManager: () => taskManager,
   showMind: (mindId) => {
@@ -74,7 +76,7 @@ const cronService = new CronService({
 });
 const a2aToolProvider = new A2aToolProvider(messageRouter, agentCardRegistry, taskManager);
 
-mindManager.setProviders([cronService, a2aToolProvider]);
+mindManager.setProviders([cronService, canvasService, a2aToolProvider]);
 
 wireLifecycleEvents({ mindManager, agentCardRegistry, taskManager, a2aEventBus });
 
