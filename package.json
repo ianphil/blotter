@@ -58,9 +58,11 @@
     "vitest": "^4.1.5"
   },
   "dependencies": {
+    "@met4citizen/talkinghead": "^1.7.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "croner": "^10.0.1",
+    "edge-tts-universal": "^1.4.0",
     "electron-squirrel-startup": "^1.0.1",
     "highlight.js": "^11.11.1",
     "keytar": "^7.9.0",

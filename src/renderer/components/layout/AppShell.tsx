@@ -5,6 +5,7 @@ import { TooltipProvider } from '../ui/tooltip';
 import { ActivityBar } from './ActivityBar';
 import { MindSidebar } from './MindSidebar';
 import { ViewRouter } from './ViewRouter';
+import { PopoutAvatarWindow } from '../avatar/PopoutAvatarWindow';
 
 function usePopoutParams() {
   const params = new URLSearchParams(window.location.search);
@@ -32,11 +33,7 @@ export function AppShell() {
     return (
       <TooltipProvider>
         <div className="flex flex-col h-screen w-screen bg-background text-foreground">
-          <div className="flex flex-1 min-h-0">
-            <main className="flex-1 flex flex-col min-w-0">
-              <ViewRouter />
-            </main>
-          </div>
+          <PopoutAvatarWindow popoutMindId={popoutMindId} />
         </div>
       </TooltipProvider>
     );

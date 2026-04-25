@@ -140,6 +140,20 @@ export interface ChatImageAttachment {
   data: string;
 }
 
+export interface VoiceRecognitionResult {
+  text?: string;
+  error?: string;
+  confidence?: number;
+  provider: 'windows-system-speech';
+}
+
+export interface VoiceSynthesisResult {
+  audioBase64?: string;
+  mimeType?: string;
+  error?: string;
+  provider: 'edge-tts';
+}
+
 export interface ElectronAPI {
   chat: {
     send: (mindId: string, message: string, messageId: string, model?: string, attachments?: ChatImageAttachment[]) => Promise<void>;
@@ -180,6 +194,11 @@ export interface ElectronAPI {
     pickPath: () => Promise<string | null>;
     create: (config: { name: string; role: string; voice: string; voiceDescription: string; basePath: string }) => Promise<{ success: boolean; mindPath?: string; error?: string }>;
     onProgress: (callback: (progress: { step: string; detail: string }) => void) => () => void;
+  };
+  voice: {
+    recognizeOnce: (options?: { language?: string; timeoutMs?: number }) => Promise<VoiceRecognitionResult>;
+    stopRecognition: () => Promise<void>;
+    synthesize: (text: string, options?: { voice?: string }) => Promise<VoiceSynthesisResult>;
   };
   chatroom: ChatroomAPI;
   a2a: {
