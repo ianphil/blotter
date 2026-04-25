@@ -53,6 +53,11 @@ const electronAPI: ElectronAPI = {
     onProgress: (callback) =>
       createIpcListener(ipcRenderer, 'genesis:progress', callback),
   },
+  voice: {
+    recognizeOnce: (options) => ipcRenderer.invoke('voice:recognizeOnce', options),
+    stopRecognition: () => ipcRenderer.invoke('voice:stopRecognition'),
+    synthesize: (text, options) => ipcRenderer.invoke('voice:synthesize', text, options),
+  },
   chatroom: {
     send: (message: string, model?: string) => ipcRenderer.invoke('chatroom:send', message, model),
     history: () => ipcRenderer.invoke('chatroom:history'),

@@ -18,6 +18,7 @@ vi.mock('./nodeResolver', () => ({
   findSystemNode: vi.fn(() => '/usr/bin/node'),
 }));
 vi.mock('fs', () => ({
+  existsSync: vi.fn(() => false),
   mkdirSync: vi.fn(),
 }));
 

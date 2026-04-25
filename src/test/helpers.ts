@@ -147,6 +147,18 @@ export function mockElectronAPI(): ElectronAPI {
       create: vi.fn().mockResolvedValue({ success: true }),
       onProgress: vi.fn().mockReturnValue(vi.fn()),
     },
+    voice: {
+      recognizeOnce: vi.fn().mockResolvedValue({
+        provider: 'windows-system-speech',
+        text: '',
+        error: 'No speech recognized. Try again after the listening indicator appears.',
+      }),
+      stopRecognition: vi.fn().mockResolvedValue(undefined),
+      synthesize: vi.fn().mockResolvedValue({
+        provider: 'edge-tts',
+        error: 'TTS is not configured for tests.',
+      }),
+    },
     chatroom: {
       send: vi.fn().mockResolvedValue(undefined),
       history: vi.fn().mockResolvedValue([]),

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, powerMonitor, type NativeImage, type Tray as ElectronTray } from 'electron';
+import { app, BrowserWindow, ipcMain, powerMonitor, session, type NativeImage, type Tray as ElectronTray } from 'electron';
 import path from 'node:path';
 import started from 'electron-squirrel-startup';
 
@@ -26,6 +26,7 @@ import { setupGenesisIPC } from './main/ipc/genesis';
 import { setupAuthIPC } from './main/ipc/auth';
 import { setupA2AIPC } from './main/ipc/a2a';
 import { setupChatroomIPC } from './main/ipc/chatroom';
+import { setupVoiceIPC } from './main/ipc/voice';
 
 import { EventEmitter } from 'events';
 import { wireLifecycleEvents } from './main/wireLifecycleEvents';
@@ -117,6 +118,15 @@ const showMainWindow = () => {
   mainWindow.focus();
 };
 
+const configureMediaPermissions = () => {
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    const owningWindow = BrowserWindow.fromWebContents(webContents);
+    const mediaTypes = 'mediaTypes' in details ? (details.mediaTypes ?? []) : [];
+    const allowAudio = Boolean(owningWindow) && permission === 'media' && mediaTypes.includes('audio');
+    callback(allowAudio);
+  });
+};
+
 const createWindow = () => {
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -136,6 +146,7 @@ const createWindow = () => {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
+      backgroundThrottling: false,
     },
   });
 
@@ -171,6 +182,7 @@ const createWindow = () => {
 
 app.on('ready', async () => {
   windowIcon = await loadAppIcon();
+  configureMediaPermissions();
 
   // --- IPC adapters (thin, parameter-injected) ---
   setupChatIPC(chatService, mindManager);
@@ -185,6 +197,7 @@ app.on('ready', async () => {
   setupAuthIPC(authService, mindManager);
   setupA2AIPC(a2aEventBus, agentCardRegistry, taskManager);
   setupChatroomIPC(chatroomService);
+  setupVoiceIPC();
 
   // Window controls
   ipcMain.on('window:minimize', () => mainWindow?.minimize());
