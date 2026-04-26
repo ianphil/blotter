@@ -38,7 +38,7 @@ const config: ForgeConfig = {
   packagerConfig: {
     asar: true,
     executableName: 'chamber',
-    extraResource: ['./resources/node', './resources/copilot-runtime', './apps/server/dist', './src/main/assets', './node_modules/keytar'],
+    extraResource: ['./resources/node', './resources/copilot-runtime', './apps/server/dist', './node_modules/keytar'],
     ...(enableMacOSSigning
       ? {
           osxSign: {},

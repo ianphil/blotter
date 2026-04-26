@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.30.0 (Unreleased)
+## v0.31.0 (2026-04-26)
 
 ### Web/server transport migration
 
@@ -8,6 +8,7 @@
 - **Introduce loopback server delivery** — added a Hono-backed local server with authenticated HTTP routes, WebSocket upgrade checks, a versioned privileged protocol scaffold, and server smoke coverage.
 - **Thin the desktop shell** — Forge now targets the desktop workspace entry and a slim preload bridge while the renderer can fall back to the browser-safe client path.
 - **Harden service seams** — service-layer Electron imports were replaced with ports for app paths, credentials, notifications, external opening, runtime layout, time, randomness, IDs, and session publishing.
+- **Add UI automation coverage** — Playwright now smoke-tests both the browser UI and Electron shell, and the Chamber UI tester agent documents the workflow for future web and desktop validation. Follow-up browser parity work is tracked in #135.
 
 ## v0.29.1 (2026-04-25)
 
