@@ -7,6 +7,13 @@ import * as path from 'path';
 
 const isWindows = process.platform === 'win32';
 
+// Required SDK version. Bumped together with the `@github/copilot-sdk`
+// dependency in the app's package.json. The packaged app caches the SDK in
+// userData; we use this to detect stale caches and force a reinstall.
+const REQUIRED_SDK_MAJOR = 0;
+const REQUIRED_SDK_MINOR = 3;
+const REQUIRED_SDK_SPEC = `@github/copilot-sdk@^${REQUIRED_SDK_MAJOR}.${REQUIRED_SDK_MINOR}.0`;
+
 let bootstrapPromise: Promise<void> | null = null;
 
 // ---------------------------------------------------------------------------
@@ -65,9 +72,35 @@ export function getCliPathFromModules(modulesDir: string): string | null {
 // Local (bootstrap) install — used in packaged builds
 // ---------------------------------------------------------------------------
 
-export function isLocalInstallReady(): boolean {
+export function getInstalledSdkVersion(): string | null {
   const sdkPkg = path.join(getLocalNodeModulesDir(), '@github', 'copilot-sdk', 'package.json');
-  return fs.existsSync(sdkPkg) && Boolean(getCliPathFromModules(getLocalNodeModulesDir()));
+  if (!fs.existsSync(sdkPkg)) return null;
+  try {
+    const parsed = JSON.parse(fs.readFileSync(sdkPkg, 'utf-8')) as { version?: string };
+    return typeof parsed.version === 'string' ? parsed.version : null;
+  } catch {
+    return null;
+  }
+}
+
+function isInstalledSdkCompatible(): boolean {
+  const version = getInstalledSdkVersion();
+  if (!version) return false;
+  const match = /^(\d+)\.(\d+)\./.exec(version);
+  if (!match) return false;
+  const major = Number(match[1]);
+  const minor = Number(match[2]);
+  if (major !== REQUIRED_SDK_MAJOR) return false;
+  if (REQUIRED_SDK_MAJOR === 0) {
+    // Pre-1.0 minors are breaking; require an exact minor match.
+    return minor === REQUIRED_SDK_MINOR;
+  }
+  return minor >= REQUIRED_SDK_MINOR;
+}
+
+export function isLocalInstallReady(): boolean {
+  if (!isInstalledSdkCompatible()) return false;
+  return Boolean(getCliPathFromModules(getLocalNodeModulesDir()));
 }
 
 async function runNpmInstall(): Promise<void> {
@@ -89,7 +122,7 @@ async function runNpmInstall(): Promise<void> {
       '--no-audit',
       '--loglevel=warn',
       '--prefix', prefixDir,
-      '@github/copilot-sdk',
+      REQUIRED_SDK_SPEC,
     ], {
       env: {
         ...process.env,
@@ -137,7 +170,18 @@ export async function ensureSdkInstalled(): Promise<void> {
   if (bootstrapPromise) return bootstrapPromise;
 
   bootstrapPromise = (async () => {
-    console.log('[SdkLoader] SDK not found locally — installing via bundled Node...');
+    const installedVersion = getInstalledSdkVersion();
+    if (installedVersion) {
+      console.log(
+        `[SdkLoader] Cached SDK ${installedVersion} is incompatible with required ${REQUIRED_SDK_SPEC}. Refreshing...`,
+      );
+      const githubScopeDir = path.join(getLocalNodeModulesDir(), '@github');
+      if (fs.existsSync(githubScopeDir)) {
+        fs.rmSync(githubScopeDir, { recursive: true, force: true });
+      }
+    } else {
+      console.log('[SdkLoader] SDK not found locally — installing via bundled Node...');
+    }
     await runNpmInstall();
     if (!isLocalInstallReady()) {
       throw new Error('SDK installation did not complete.');

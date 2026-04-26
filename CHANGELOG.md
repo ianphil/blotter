@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.29.1 (2026-04-25)
+
+### SDK install hardening
+
+- **Detect stale cached SDK in packaged builds** — the packaged app installs `@github/copilot-sdk` into `%APPDATA%\chamber\copilot\node_modules`. Previously `isLocalInstallReady()` only checked file existence, so users upgrading from older releases kept running against a cached SDK 0.2.x and hit `a.rpc.permissions.setApproveAll is not a function` when opening a mind.
+- **Pin the install spec** — bootstrap now installs `@github/copilot-sdk@^0.3.0` instead of unpinned `@github/copilot-sdk`, version-checks the cached install on startup, and wipes/refreshes `node_modules\@github` when the cached major.minor doesn't match.
+
 ## v0.29.0 (2026-04-25)
 
 ### SDK 0.3.0 permission compatibility
