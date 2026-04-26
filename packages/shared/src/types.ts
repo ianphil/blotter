@@ -167,7 +167,7 @@ export interface ElectronAPI {
   auth: {
     getStatus: () => Promise<{ authenticated: boolean; login?: string }>;
     listAccounts: () => Promise<Array<{ login: string }>>;
-    startLogin: () => Promise<{ success: boolean; login?: string }>;
+    startLogin: () => Promise<{ success: boolean; login?: string; error?: string }>;
     switchAccount: (login: string) => Promise<void>;
     logout: () => Promise<void>;
     onProgress: (callback: (progress: { step: string; userCode?: string; verificationUri?: string; login?: string; error?: string }) => void) => () => void;

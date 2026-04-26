@@ -16,6 +16,7 @@ export function createServerContext(options: ServerCompositionOptions = {}): Cha
     listLensViews: () => [],
     getGenesisStatus: () => ({ ready: false }),
     getAuthStatus: () => ({ authenticated: false }),
+    listAuthAccounts: () => [],
     listChamberTools: () => [],
     saveAttachment: async ({ name }) => ({ attachmentId: randomUUID(), name }),
     cancelChat: () => undefined,

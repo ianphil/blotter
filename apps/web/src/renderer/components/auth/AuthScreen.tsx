@@ -13,6 +13,7 @@ export function AuthScreen({ onAuthenticated }: Props) {
 
   const handleSignIn = async () => {
     setStage('waiting');
+    setError('');
 
     const unsub = window.electronAPI.auth.onProgress((progress) => {
       if (progress.step === 'device_code' && progress.userCode) {
@@ -29,13 +30,21 @@ export function AuthScreen({ onAuthenticated }: Props) {
       }
     });
 
-    const result = await window.electronAPI.auth.startLogin();
-    unsub();
-
-    if (result.success && stage !== 'done') {
-      setLogin(result.login ?? '');
-      setStage('done');
-      setTimeout(onAuthenticated, 1000);
+    try {
+      const result = await window.electronAPI.auth.startLogin();
+      if (result.success) {
+        setLogin(result.login ?? '');
+        setStage('done');
+        setTimeout(onAuthenticated, 1000);
+        return;
+      }
+      setError(result.error ?? 'Authentication did not complete.');
+      setStage('error');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+      setStage('error');
+    } finally {
+      unsub();
     }
   };
 

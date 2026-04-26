@@ -9,19 +9,45 @@ export async function listMindsHandler(_request: ChamberRequest, ctx: ChamberCtx
 }
 
 export async function getConfigHandler(_request: ChamberRequest, ctx: ChamberCtx): Promise<ChamberResponse> {
-  return { status: 200, body: ctx.getConfig?.() ?? { version: 1 } };
+  return { status: 200, body: await ctx.getConfig?.() ?? { version: 1 } };
 }
 
 export async function listLensViewsHandler(_request: ChamberRequest, ctx: ChamberCtx): Promise<ChamberResponse> {
-  return { status: 200, body: { views: ctx.listLensViews?.() ?? [] } };
+  return { status: 200, body: { views: await ctx.listLensViews?.() ?? [] } };
 }
 
 export async function getGenesisStatusHandler(_request: ChamberRequest, ctx: ChamberCtx): Promise<ChamberResponse> {
-  return { status: 200, body: ctx.getGenesisStatus?.() ?? { ready: false } };
+  return { status: 200, body: await ctx.getGenesisStatus?.() ?? { ready: false } };
 }
 
 export async function getAuthStatusHandler(_request: ChamberRequest, ctx: ChamberCtx): Promise<ChamberResponse> {
-  return { status: 200, body: ctx.getAuthStatus?.() ?? { authenticated: false } };
+  return { status: 200, body: await ctx.getAuthStatus?.() ?? { authenticated: false } };
+}
+
+export async function listAuthAccountsHandler(_request: ChamberRequest, ctx: ChamberCtx): Promise<ChamberResponse> {
+  return { status: 200, body: { accounts: await ctx.listAuthAccounts?.() ?? [] } };
+}
+
+export async function switchAuthAccountHandler(request: ChamberRequest, ctx: ChamberCtx): Promise<ChamberResponse> {
+  const login = typeof request.body === 'object' && request.body !== null && 'login' in request.body
+    ? String((request.body as { login: unknown }).login)
+    : '';
+  if (!login) {
+    return { status: 400, body: { error: 'login is required' } };
+  }
+  if (!ctx.switchAuthAccount) {
+    return { status: 503, body: { error: 'Auth account switching is unavailable' } };
+  }
+  await ctx.switchAuthAccount(login);
+  return { status: 200, body: { ok: true } };
+}
+
+export async function logoutAuthHandler(_request: ChamberRequest, ctx: ChamberCtx): Promise<ChamberResponse> {
+  if (!ctx.logoutAuth) {
+    return { status: 503, body: { error: 'Auth logout is unavailable' } };
+  }
+  await ctx.logoutAuth();
+  return { status: 200, body: { ok: true } };
 }
 
 export async function listChamberToolsHandler(_request: ChamberRequest, ctx: ChamberCtx): Promise<ChamberResponse> {

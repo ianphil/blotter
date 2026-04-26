@@ -4,7 +4,10 @@ import type { AgentCard, ListTasksResponse, Task } from './shared/a2a-types';
 import type { ChatroomAPI, ChatroomMessage, TaskLedgerItem } from './shared/chatroom-types';
 
 const noopUnsubscribe = () => undefined;
-const emptyList = async <T>(): Promise<T[]> => [];
+
+type AuthProgress = Parameters<ElectronAPI['auth']['onProgress']>[0] extends (progress: infer TProgress) => void
+  ? TProgress
+  : never;
 
 function createClient(): ChamberClient {
   const token = new URLSearchParams(window.location.search).get('token') ?? '';
@@ -28,6 +31,15 @@ export function installBrowserApi(): void {
   if (window.electronAPI) return;
 
   const client = createClient();
+  const authProgressHandlers = new Set<(progress: AuthProgress) => void>();
+  const accountSwitchStartedHandlers = new Set<(data: { login: string }) => void>();
+  const accountSwitchedHandlers = new Set<(data: { login: string }) => void>();
+  const loggedOutHandlers = new Set<() => void>();
+  const emitAuthProgress = (progress: AuthProgress) => {
+    for (const handler of authProgressHandlers) {
+      handler(progress);
+    }
+  };
   const api: ElectronAPI = {
     chat: {
       send: async () => undefined,
@@ -59,15 +71,56 @@ export function installBrowserApi(): void {
       onViewsChanged: () => noopUnsubscribe,
     },
     auth: {
-      getStatus: async () => ({ authenticated: false }),
-      listAccounts: emptyList,
-      startLogin: async () => ({ success: false }),
-      switchAccount: async () => undefined,
-      logout: async () => undefined,
-      onProgress: () => noopUnsubscribe,
-      onAccountSwitchStarted: () => noopUnsubscribe,
-      onAccountSwitched: () => noopUnsubscribe,
-      onLoggedOut: () => noopUnsubscribe,
+      getStatus: () => client.getAuthStatus(),
+      listAccounts: () => client.listAuthAccounts(),
+      startLogin: async () => {
+        const result = await client.startAuthLogin((progress) => {
+          emitAuthProgress(progress);
+          if (progress.step === 'device_code' && progress.verificationUri) {
+            window.open(progress.verificationUri, '_blank', 'noopener,noreferrer');
+          }
+        });
+        if (result.success && result.login) {
+          const data = { login: result.login };
+          for (const handler of accountSwitchStartedHandlers) handler(data);
+          for (const handler of accountSwitchedHandlers) handler(data);
+        }
+        return result;
+      },
+      switchAccount: async (login) => {
+        await client.switchAuthAccount(login);
+        const data = { login };
+        for (const handler of accountSwitchStartedHandlers) handler(data);
+        for (const handler of accountSwitchedHandlers) handler(data);
+      },
+      logout: async () => {
+        await client.logoutAuth();
+        for (const handler of loggedOutHandlers) handler();
+      },
+      onProgress: (callback) => {
+        authProgressHandlers.add(callback);
+        return () => {
+          authProgressHandlers.delete(callback);
+        };
+      },
+      onAccountSwitchStarted: (callback) => {
+        accountSwitchStartedHandlers.add(callback);
+        return () => {
+          accountSwitchStartedHandlers.delete(callback);
+        };
+      },
+      onAccountSwitched: (callback) => {
+        accountSwitchedHandlers.add(callback);
+        return () => {
+          accountSwitchedHandlers.delete(callback);
+        };
+      },
+      onLoggedOut: (callback) => {
+        loggedOutHandlers.add(callback);
+        return () => {
+          loggedOutHandlers.delete(callback);
+        };
+      },
     },
     genesis: {
       getDefaultPath: async () => '',

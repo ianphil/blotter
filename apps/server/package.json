@@ -11,6 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "keytar": "^7.9.0",
     "hono": "^4.10.6",
     "ws": "^8.18.3"
   }

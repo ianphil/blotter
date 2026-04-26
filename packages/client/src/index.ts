@@ -1,5 +1,19 @@
 import type { CommandResponse, ListMindsResponse, MindDto } from '@chamber/wire-contracts';
 
+export interface AuthProgressDto {
+  step: string;
+  userCode?: string;
+  verificationUri?: string;
+  login?: string;
+  error?: string;
+}
+
+export interface AuthLoginResultDto {
+  success: boolean;
+  login?: string;
+  error?: string;
+}
+
 export interface ChamberClientOptions {
   baseUrl: string;
   token: string;
@@ -26,8 +40,60 @@ export class ChamberClient {
     return this.get('/api/genesis/status');
   }
 
-  async getAuthStatus(): Promise<unknown> {
+  async getAuthStatus(): Promise<{ authenticated: boolean; login?: string }> {
     return this.get('/api/auth/status');
+  }
+
+  async listAuthAccounts(): Promise<Array<{ login: string }>> {
+    const body = await this.get<{ accounts: Array<{ login: string }> }>('/api/auth/accounts');
+    return body.accounts;
+  }
+
+  async startAuthLogin(onProgress: (progress: AuthProgressDto) => void): Promise<AuthLoginResultDto> {
+    const response = await fetch(new URL('/api/auth/login', this.options.baseUrl), {
+      headers: this.headers(),
+      method: 'POST',
+    });
+    if (!response.ok) {
+      throw new Error(`Failed to POST /api/auth/login: ${response.status}`);
+    }
+    if (!response.body) {
+      throw new Error('Auth login response did not include a stream.');
+    }
+
+    let result: AuthLoginResultDto = { success: false, error: 'Authentication did not complete.' };
+    const decoder = new TextDecoder();
+    const reader = response.body.getReader();
+    let buffer = '';
+
+    while (true) {
+      const { value, done } = await reader.read();
+      buffer += decoder.decode(value, { stream: !done });
+      const lines = buffer.split('\n');
+      buffer = lines.pop() ?? '';
+      for (const line of lines) {
+        if (!line.trim()) continue;
+        const event = JSON.parse(line) as
+          | { type: 'progress'; progress: AuthProgressDto }
+          | { type: 'result'; result: AuthLoginResultDto };
+        if (event.type === 'progress') {
+          onProgress(event.progress);
+        } else {
+          result = event.result;
+        }
+      }
+      if (done) break;
+    }
+
+    return result;
+  }
+
+  async switchAuthAccount(login: string): Promise<void> {
+    await this.post('/api/auth/switch', { login });
+  }
+
+  async logoutAuth(): Promise<void> {
+    await this.post('/api/auth/logout', {});
   }
 
   async listChamberTools(): Promise<unknown> {
