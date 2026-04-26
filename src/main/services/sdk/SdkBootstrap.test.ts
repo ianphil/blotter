@@ -17,6 +17,7 @@ vi.mock('fs', () => ({
 
 import {
   getPlatformCopilotBinaryPath,
+  getPlatformCopilotPackageName,
   getRequiredRuntimeVersions,
   getRuntimeManifestDir,
   getRuntimeNodeModulesDir,
@@ -24,13 +25,22 @@ import {
   validateRuntime,
 } from './SdkBootstrap';
 
+const isWindows = process.platform === 'win32';
+const TEST_CWD = isWindows ? 'C:\\src\\chamber' : '/src/chamber';
+const TEST_RESOURCES = isWindows
+  ? 'C:\\Program Files\\Chamber\\resources'
+  : '/opt/Chamber/resources';
+const TEST_RUNTIME_ROOT = isWindows ? 'C:\\runtime\\node_modules' : '/runtime/node_modules';
+const platformPackageShortName = getPlatformCopilotPackageName().split('/')[1];
+const cliBinaryName = isWindows ? 'copilot.exe' : 'copilot';
+
 describe('SdkBootstrap', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockApp.isPackaged = false;
-    vi.spyOn(process, 'cwd').mockReturnValue('C:\\src\\chamber');
+    vi.spyOn(process, 'cwd').mockReturnValue(TEST_CWD);
     Object.defineProperty(process, 'resourcesPath', {
-      value: 'C:\\Program Files\\Chamber\\resources',
+      value: TEST_RESOURCES,
       configurable: true,
     });
     mockExistsSync.mockReturnValue(false);
@@ -56,9 +66,9 @@ describe('SdkBootstrap', () => {
     const manifestPath = path.join(manifestDir, 'package.json');
     const sdkPackageJson = path.join(modulesDir, '@github', 'copilot-sdk', 'package.json');
     const cliPackageJson = path.join(modulesDir, '@github', 'copilot', 'package.json');
-    const platformPackageJson = path.join(modulesDir, '@github', 'copilot-win32-x64', 'package.json');
+    const platformPackageJson = path.join(modulesDir, '@github', platformPackageShortName, 'package.json');
     const sdkEntry = path.join(modulesDir, '@github', 'copilot-sdk', 'dist', 'index.js');
-    const binaryPath = path.join(modulesDir, '@github', 'copilot-win32-x64', 'copilot.exe');
+    const binaryPath = path.join(modulesDir, '@github', platformPackageShortName, cliBinaryName);
 
     mockExistsSync.mockImplementation((candidate) => {
       const value = String(candidate);
@@ -91,20 +101,23 @@ describe('SdkBootstrap', () => {
   }
 
   it('uses repo-local paths in dev mode', () => {
-    expect(getRuntimeManifestDir()).toBe('C:\\src\\chamber\\chamber-copilot-runtime');
-    expect(getRuntimeNodeModulesDir()).toBe('C:\\src\\chamber\\node_modules');
+    expect(getRuntimeManifestDir()).toBe(path.join(TEST_CWD, 'chamber-copilot-runtime'));
+    expect(getRuntimeNodeModulesDir()).toBe(path.join(TEST_CWD, 'node_modules'));
   });
 
   it('uses packaged resources paths in packaged mode', () => {
     mockApp.isPackaged = true;
 
-    expect(getRuntimeManifestDir()).toBe('C:\\Program Files\\Chamber\\resources\\copilot-runtime');
-    expect(getRuntimeNodeModulesDir()).toBe('C:\\Program Files\\Chamber\\resources\\copilot-runtime\\node_modules');
+    expect(getRuntimeManifestDir()).toBe(path.join(TEST_RESOURCES, 'copilot-runtime'));
+    expect(getRuntimeNodeModulesDir()).toBe(
+      path.join(TEST_RESOURCES, 'copilot-runtime', 'node_modules'),
+    );
   });
 
   it('reads exact pinned runtime versions from the committed manifest', () => {
+    const manifestPath = path.join(TEST_CWD, 'chamber-copilot-runtime', 'package.json');
     mockReadFileSync.mockImplementation((candidate) => {
-      if (String(candidate) === 'C:\\src\\chamber\\chamber-copilot-runtime\\package.json') {
+      if (String(candidate) === manifestPath) {
         return JSON.stringify({
           dependencies: {
             '@github/copilot-sdk': '0.3.0',
@@ -122,8 +135,8 @@ describe('SdkBootstrap', () => {
   });
 
   it('builds the native Copilot binary path for the current platform', () => {
-    expect(getPlatformCopilotBinaryPath('C:\\runtime\\node_modules')).toBe(
-      'C:\\runtime\\node_modules\\@github\\copilot-win32-x64\\copilot.exe'
+    expect(getPlatformCopilotBinaryPath(TEST_RUNTIME_ROOT)).toBe(
+      path.join(TEST_RUNTIME_ROOT, '@github', platformPackageShortName, cliBinaryName),
     );
   });
 
