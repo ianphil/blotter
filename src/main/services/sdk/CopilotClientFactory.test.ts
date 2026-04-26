@@ -19,6 +19,8 @@ vi.mock('./nodeResolver', () => ({
 }));
 vi.mock('fs', () => ({
   mkdirSync: vi.fn(),
+  existsSync: vi.fn((candidate: string) =>
+    candidate === 'C:\\src\\chamber\\node_modules\\@github\\copilot-sdk\\package.json'),
 }));
 
 // Mock the dynamic SDK import

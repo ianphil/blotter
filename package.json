@@ -15,6 +15,7 @@
     "lint": "tsc --noEmit && eslint .",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:sdk-smoke": "node scripts/run-sdk-smoke-test.js",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "test:ui": "vitest --ui"
