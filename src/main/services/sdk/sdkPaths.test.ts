@@ -3,13 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const {
   mockApp,
   mockExistsSync,
-  mockGetLocalNodeModulesDir,
-  mockIsLocalInstallReady,
+  mockGetRuntimeNodeModulesDir,
+  mockIsRuntimeReady,
 } = vi.hoisted(() => ({
   mockApp: { isPackaged: false },
   mockExistsSync: vi.fn(),
-  mockGetLocalNodeModulesDir: vi.fn(() => 'C:\\local\\node_modules'),
-  mockIsLocalInstallReady: vi.fn(() => false),
+  mockGetRuntimeNodeModulesDir: vi.fn(() => 'C:\\resources\\copilot-runtime\\node_modules'),
+  mockIsRuntimeReady: vi.fn(() => false),
 }));
 
 vi.mock('electron', () => ({
@@ -21,8 +21,8 @@ vi.mock('fs', () => ({
 }));
 
 vi.mock('./SdkBootstrap', () => ({
-  getLocalNodeModulesDir: mockGetLocalNodeModulesDir,
-  isLocalInstallReady: mockIsLocalInstallReady,
+  getRuntimeNodeModulesDir: mockGetRuntimeNodeModulesDir,
+  isRuntimeReady: mockIsRuntimeReady,
 }));
 
 import { resolveNodeModulesDir } from './sdkPaths';
@@ -31,8 +31,8 @@ describe('resolveNodeModulesDir', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockApp.isPackaged = false;
-    mockGetLocalNodeModulesDir.mockReturnValue('C:\\local\\node_modules');
-    mockIsLocalInstallReady.mockReturnValue(false);
+    mockGetRuntimeNodeModulesDir.mockReturnValue('C:\\resources\\copilot-runtime\\node_modules');
+    mockIsRuntimeReady.mockReturnValue(false);
     mockExistsSync.mockReturnValue(false);
     vi.spyOn(process, 'cwd').mockReturnValue('C:\\src\\chamber');
   });
@@ -46,22 +46,22 @@ describe('resolveNodeModulesDir', () => {
 
   it('throws in dev mode when the project install is missing', () => {
     expect(() => resolveNodeModulesDir()).toThrow(
-      'Chamber requires the repo-local @github/copilot-sdk install in dev mode. Run: npm install',
+      'Chamber requires the repo-local @github/copilot-sdk install in dev mode. Run: npm install'
     );
   });
 
-  it('uses the packaged bootstrap install when available', () => {
+  it('uses the packaged runtime when available', () => {
     mockApp.isPackaged = true;
-    mockIsLocalInstallReady.mockReturnValue(true);
+    mockIsRuntimeReady.mockReturnValue(true);
 
-    expect(resolveNodeModulesDir()).toBe('C:\\local\\node_modules');
+    expect(resolveNodeModulesDir()).toBe('C:\\resources\\copilot-runtime\\node_modules');
   });
 
-  it('throws in packaged mode when the app-managed install is missing', () => {
+  it('throws in packaged mode when the runtime is missing', () => {
     mockApp.isPackaged = true;
 
     expect(() => resolveNodeModulesDir()).toThrow(
-      'Chamber could not find its packaged Copilot SDK install. Reinstall the app or complete first-run setup.',
+      'Chamber could not find its packaged Copilot runtime. Reinstall the app.'
     );
   });
 });

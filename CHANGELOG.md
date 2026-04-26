@@ -2,10 +2,11 @@
 
 ## v0.29.1 (2026-04-25)
 
-### SDK install hardening
+### Packaged Copilot runtime
 
-- **Detect stale cached SDK in packaged builds** — the packaged app installs `@github/copilot-sdk` into `%APPDATA%\chamber\copilot\node_modules`. Previously `isLocalInstallReady()` only checked file existence, so users upgrading from older releases kept running against a cached SDK 0.2.x and hit `a.rpc.permissions.setApproveAll is not a function` when opening a mind.
-- **Pin the install spec** — bootstrap now installs `@github/copilot-sdk@^0.3.0` instead of unpinned `@github/copilot-sdk`, version-checks the cached install on startup, and wipes/refreshes `node_modules\@github` when the cached major.minor doesn't match.
+- **Ship the runtime in the box** — packaged Chamber no longer runs `npm install` into `%APPDATA%\chamber\copilot` on first launch. It now ships a pinned `@github/copilot-sdk` + `@github/copilot` runtime under `resources\copilot-runtime`, so opening a mind works offline and cannot drift against a stale user cache.
+- **Pin SDK + CLI together** — Chamber now treats the SDK/CLI pair as a committed runtime contract in `chamber-copilot-runtime\package.json` + `package-lock.json`, then materializes the packaged runtime with `npm ci` at package time.
+- **Use the native CLI directly** — `CopilotClientFactory` now passes the platform `copilot.exe` binary directly as `cliPath`, removing the bundled-Node/npm-loader trampoline path and matching the real packaged runtime more closely in smoke coverage.
 
 ## v0.29.0 (2026-04-25)
 
