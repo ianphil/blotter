@@ -31,7 +31,7 @@ npm run lint
 
 Current Playwright entry points:
 
-- `playwright.config.ts`
+- `config/playwright.config.ts`
 - `tests/e2e/web/boot.spec.ts`
 - `tests/e2e/electron/boot.spec.ts`
 

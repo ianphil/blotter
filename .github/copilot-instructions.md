@@ -14,7 +14,7 @@ These instructions tell Copilot how to produce code that fits the Chamber codeba
 
 - **Runtime**: Node `20` (`.nvmrc`), Electron `41`
 - **Language**: TypeScript `6.0`, ESM source (CommonJS module target in `tsconfig.json`), `target: ESNext`, `strict: true`, `noImplicitAny: true`, `moduleResolution: bundler`, JSX `react-jsx`
-- **Path alias**: `@/*` → `./src/*` (tsconfig + `vitest.config.ts` + `components.json`)
+- **Path alias**: `@/*` → `./src/*` (tsconfig + `config/vitest.config.ts` + `components.json`)
 - **UI**: React `19`, Tailwind CSS `4`, shadcn/ui style `radix-nova` (Radix primitives + CVA + `tailwind-merge` + `clsx`), Lucide icons
 - **Markdown**: `react-markdown` + `remark-gfm` + `rehype-highlight` + `highlight.js`
 - **Build**: Electron Forge `7.11` + `@electron-forge/plugin-vite` + Vite `8`
@@ -144,7 +144,7 @@ Observed across the codebase:
 
 ## Testing
 
-Vitest is the test runner. Configuration is in `vitest.config.ts`.
+Vitest is the test runner. Configuration is in `config/vitest.config.ts`.
 
 - Tests are colocated with source: `Foo.ts` and `Foo.test.ts` in the same folder.
 - Test names read like specifications, not test labels:
