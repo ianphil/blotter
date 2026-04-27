@@ -28,7 +28,14 @@ export class ViewDiscovery {
     const lensDir = path.join(mindPath, '.github', 'lens');
 
     if (fs.existsSync(lensDir)) {
-      const entries = fs.readdirSync(lensDir, { withFileTypes: true });
+      let entries: fs.Dirent[];
+      try {
+        entries = fs.readdirSync(lensDir, { withFileTypes: true });
+      } catch (err) {
+        console.warn(`[ViewDiscovery] Failed to read ${lensDir}:`, err);
+        this.viewsByMind.set(mindPath, views);
+        return views;
+      }
       for (const entry of entries) {
         if (!entry.isDirectory()) continue;
         const viewJsonPath = path.join(lensDir, entry.name, 'view.json');
@@ -121,10 +128,8 @@ export class ViewDiscovery {
         const parentWatcher = fs.watch(githubDir, (_eventType, filename) => {
           if (filename === 'lens' && fs.existsSync(lensDir)) {
             parentWatcher.close();
-            this.scan(mindPath).then(() => {
-              this.watchLensDir(mindPath, lensDir, onChanged);
-              onChanged();
-            });
+            this.watchLensDir(mindPath, lensDir, onChanged);
+            this.scheduleScan(mindPath, onChanged);
           }
         });
         watchers.push(parentWatcher);
@@ -149,7 +154,9 @@ export class ViewDiscovery {
     if (existingTimer) clearTimeout(existingTimer);
     const timer = setTimeout(() => {
       this.scanTimersByMind.delete(mindPath);
-      void this.scan(mindPath).then(onChanged);
+      void this.scan(mindPath).then(onChanged).catch((err: unknown) => {
+        console.warn(`[ViewDiscovery] Failed to rescan lens views for ${mindPath}:`, err);
+      });
     }, 300);
     this.scanTimersByMind.set(mindPath, timer);
   }

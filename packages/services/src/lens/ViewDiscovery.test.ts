@@ -202,6 +202,7 @@ describe('ViewDiscovery', () => {
     });
 
     it('transitions to lens/ watcher when lens/ appears', async () => {
+      vi.useFakeTimers();
       const mockClose = vi.fn();
       let parentCallback: (event: string, filename: string) => void = () => {};
       vi.mocked(fs.watch).mockImplementation((_path: unknown, ...args: unknown[]) => {
@@ -225,12 +226,11 @@ describe('ViewDiscovery', () => {
       // Simulate lens/ directory appearing
       lensExists = true;
       parentCallback('rename', 'lens');
+      await vi.advanceTimersByTimeAsync(300);
 
-      // Allow the scan promise to resolve
-      await vi.waitFor(() => {
-        expect(onChanged).toHaveBeenCalled();
-      });
+      expect(onChanged).toHaveBeenCalled();
       expect(mockClose).toHaveBeenCalled();
+      vi.useRealTimers();
     });
 
     it('does nothing when .github/ does not exist either', () => {
@@ -314,6 +314,51 @@ describe('ViewDiscovery', () => {
       discovery.startWatching('/tmp/mind', onChanged);
 
       viewExists = false;
+      lensCallback('rename', 'old-view');
+      await vi.advanceTimersByTimeAsync(300);
+
+      expect(discovery.getViews('/tmp/mind')).toEqual([]);
+      expect(onChanged).toHaveBeenCalledTimes(1);
+    });
+
+    it('clears pending rescans when watching stops', async () => {
+      let lensCallback: (event: string, filename: string) => void = () => {};
+      vi.mocked(fs.watch).mockImplementation((_path: unknown, ...args: unknown[]) => {
+        const cb = args.find(a => typeof a === 'function') as (event: string, filename: string) => void;
+        if (cb) lensCallback = cb;
+        return { close: vi.fn() } as unknown as fs.FSWatcher;
+      });
+
+      mockExistsSync.mockReturnValue(true);
+      mockReaddirSync.mockReturnValue([]);
+
+      const onChanged = vi.fn();
+      discovery.startWatching('/tmp/mind', onChanged);
+
+      lensCallback('rename', 'new-view');
+      discovery.stopWatching('/tmp/mind');
+      await vi.advanceTimersByTimeAsync(300);
+
+      expect(mockReaddirSync).not.toHaveBeenCalled();
+      expect(onChanged).not.toHaveBeenCalled();
+    });
+
+    it('treats disappearing lens directories as empty during watcher rescans', async () => {
+      let lensCallback: (event: string, filename: string) => void = () => {};
+      vi.mocked(fs.watch).mockImplementation((_path: unknown, ...args: unknown[]) => {
+        const cb = args.find(a => typeof a === 'function') as (event: string, filename: string) => void;
+        if (cb) lensCallback = cb;
+        return { close: vi.fn() } as unknown as fs.FSWatcher;
+      });
+
+      mockExistsSync.mockReturnValue(true);
+      mockReaddirSync.mockImplementation(() => {
+        throw Object.assign(new Error('gone'), { code: 'ENOENT' });
+      });
+
+      const onChanged = vi.fn();
+      discovery.startWatching('/tmp/mind', onChanged);
+
       lensCallback('rename', 'old-view');
       await vi.advanceTimersByTimeAsync(300);
 
