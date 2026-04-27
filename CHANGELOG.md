@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.32.2 (2026-04-27)
+
+### Release packaging
+
+- **Recover Copilot runtime promotion on Windows** — release packaging now falls back to copying the staged Copilot runtime when Windows refuses the final directory rename with `EPERM`, preventing the Forge prePackage hook from failing on release runners.
+
 ## v0.32.1 (2026-04-27)
 
 ### Windows packaging
