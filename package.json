@@ -24,8 +24,8 @@
     "test:sdk-smoke": "node scripts/run-sdk-smoke-test.js",
     "test:server-sdk-smoke": "npm --workspace @chamber/server run build && node scripts/run-server-sdk-smoke-test.js",
     "test:ui:web": "playwright test --config config/playwright.config.ts --project=web",
-    "test:ui:electron": "playwright test --config config/playwright.config.ts --project=electron",
-    "test:ui:e2e": "playwright test --config config/playwright.config.ts",
+    "test:ui:electron": "playwright test --config config/playwright.config.ts --project=electron --workers=1",
+    "test:ui:e2e": "playwright test --config config/playwright.config.ts --workers=1",
     "test:watch": "vitest --config config/vitest.config.ts",
     "test:coverage": "vitest run --config config/vitest.config.ts --coverage",
     "test:ui": "vitest --config config/vitest.config.ts --ui"

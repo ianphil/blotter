@@ -13,9 +13,17 @@ export class ConfigService {
   /** @deprecated Use generateMindId() from mind/generateMindId instead */
   static generateMindId = generateMindId;
 
+  private readonly configDir: string;
+  private readonly configPath: string;
+
+  constructor(configDir = process.env.CHAMBER_E2E_USER_DATA ?? CONFIG_DIR) {
+    this.configDir = configDir;
+    this.configPath = configDir === CONFIG_DIR ? CONFIG_PATH : path.join(configDir, 'config.json');
+  }
+
   load(): AppConfig {
     try {
-      const data = fs.readFileSync(CONFIG_PATH, 'utf-8');
+      const data = fs.readFileSync(this.configPath, 'utf-8');
       const raw = JSON.parse(data);
       return this.normalize(raw);
     } catch {
@@ -24,8 +32,8 @@ export class ConfigService {
   }
 
   save(config: AppConfig): void {
-    fs.mkdirSync(CONFIG_DIR, { recursive: true });
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+    fs.mkdirSync(this.configDir, { recursive: true });
+    fs.writeFileSync(this.configPath, JSON.stringify(config, null, 2));
   }
 
   private normalize(raw: Record<string, unknown>): AppConfig {

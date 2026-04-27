@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import * as path from 'node:path';
 
 vi.mock('fs', () => ({
   existsSync: vi.fn(),
@@ -108,6 +109,20 @@ describe('ConfigService', () => {
       expect(parsed.version).toBe(2);
       expect(parsed.minds).toHaveLength(1);
       expect(parsed.activeLogin).toBe('alice');
+    });
+
+    it('writes config under an injected config directory', () => {
+      const configDir = path.join('tmp', 'chamber-e2e-user-data');
+      const config: AppConfig = { version: 2, minds: [], activeMindId: null, activeLogin: null, theme: 'dark' };
+      new ConfigService(configDir).save(config);
+
+      expect(vi.mocked(fs.mkdirSync)).toHaveBeenCalledWith(configDir, {
+        recursive: true,
+      });
+      expect(vi.mocked(fs.writeFileSync)).toHaveBeenCalledWith(
+        path.join(configDir, 'config.json'),
+        JSON.stringify(config, null, 2),
+      );
     });
   });
 

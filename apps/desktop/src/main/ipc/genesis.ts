@@ -1,5 +1,7 @@
 // Genesis IPC handlers — wire MindScaffold to renderer
 import { ipcMain, dialog, BrowserWindow } from 'electron';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { MindManager, MindScaffold, installLensSkill, seedLensDefaults, type GenesisConfig } from '@chamber/services';
 
 export function setupGenesisIPC(
@@ -8,7 +10,7 @@ export function setupGenesisIPC(
 ): void {
 
   ipcMain.handle('genesis:getDefaultPath', async () => {
-    return MindScaffold.getDefaultBasePath();
+    return getDefaultGenesisBasePath();
   });
 
   ipcMain.handle('genesis:pickPath', async (event) => {
@@ -34,6 +36,7 @@ export function setupGenesisIPC(
 
     try {
       const mindPath = await scaffold.create(config);
+      appendE2EGenesisMemory(mindPath);
 
       // Bootstrap Lens defaults
       seedLensDefaults(mindPath);
@@ -50,4 +53,18 @@ export function setupGenesisIPC(
       return { success: false, error: message };
     }
   });
+}
+
+function getDefaultGenesisBasePath(): string {
+  if (process.env.CHAMBER_E2E === '1' && process.env.CHAMBER_E2E_GENESIS_BASE_PATH) {
+    return process.env.CHAMBER_E2E_GENESIS_BASE_PATH;
+  }
+  return MindScaffold.getDefaultBasePath();
+}
+
+function appendE2EGenesisMemory(mindPath: string): void {
+  const memoryAppend = process.env.CHAMBER_E2E_GENESIS_MEMORY_APPEND?.trim();
+  if (process.env.CHAMBER_E2E !== '1' || !memoryAppend) return;
+
+  fs.appendFileSync(path.join(mindPath, '.working-memory', 'memory.md'), `\n\n${memoryAppend}\n`, 'utf-8');
 }
