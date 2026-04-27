@@ -79,7 +79,7 @@ describe('createHttpServer', () => {
 
   it('returns 400 for malformed privileged requests', async () => {
     const { port } = await startServer({
-      handlePrivilegedRequest: async () => ({ ok: true }),
+      handlePrivilegedRequest: async (request) => ({ ok: true, requestId: request.requestId }),
     });
 
     const response = await httpRequest(port, {
@@ -96,6 +96,22 @@ describe('createHttpServer', () => {
 
     expect(response.statusCode).toBe(400);
     expect(JSON.parse(response.body)).toEqual({ error: 'credential.setPassword requires payload.password.' });
+  });
+
+  it('returns 400 for invalid privileged JSON bodies', async () => {
+    const { port } = await startServer({
+      handlePrivilegedRequest: async (request) => ({ ok: true, requestId: request.requestId }),
+    });
+
+    const response = await httpRequest(port, {
+      method: 'POST',
+      path: '/api/privileged',
+      headers: { 'content-type': 'application/json' },
+      body: '{"protoVersion":',
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(JSON.parse(response.body)).toEqual({ error: 'Privileged request body must be valid JSON.' });
   });
 });
 

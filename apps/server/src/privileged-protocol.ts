@@ -1,4 +1,4 @@
-import type { CredentialStore } from '../../../packages/services/src/ports';
+import type { CredentialStore } from '@chamber/services';
 
 export const PRIVILEGED_PROTO_VERSION = 1;
 

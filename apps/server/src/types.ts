@@ -1,4 +1,4 @@
-import type { PrivilegedRequest } from './privileged-protocol';
+import type { PrivilegedRequest, PrivilegedResponse } from './privileged-protocol';
 
 export interface ChamberRequest {
   method: string;
@@ -46,5 +46,5 @@ export interface ChamberCtx {
   saveAttachment?: (attachment: { name: string; body: ArrayBuffer }) => Promise<unknown>;
   cancelChat?: (sessionId: string) => Promise<void> | void;
   shutdown?: () => void;
-  handlePrivilegedRequest?: (request: PrivilegedRequest) => Promise<unknown>;
+  handlePrivilegedRequest?: (request: PrivilegedRequest) => Promise<PrivilegedResponse>;
 }

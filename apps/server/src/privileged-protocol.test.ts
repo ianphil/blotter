@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createCredentialPrivilegedHandler, parsePrivilegedRequest } from './privileged-protocol';
-import type { CredentialStore } from '../../../packages/services/src/ports';
+import type { CredentialStore } from '@chamber/services';
 
 describe('privileged protocol', () => {
   it('rejects unsupported protocol versions', () => {

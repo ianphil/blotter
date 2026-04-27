@@ -1,7 +1,6 @@
 import { createHttpServer } from './honoAdapter';
 import { createServerContext } from './composition';
-import { AuthService } from '../../../packages/services/src/auth/AuthService';
-import type { CredentialStore } from '../../../packages/services/src/ports';
+import { AuthService, type CredentialStore } from '@chamber/services';
 import keytar from 'keytar';
 import { createCredentialPrivilegedHandler } from './privileged-protocol';
 

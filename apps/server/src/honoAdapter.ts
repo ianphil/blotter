@@ -134,9 +134,15 @@ export function createHonoApp(ctx: ChamberCtx): Hono {
     const authFailure = requireAuth(c, ctx);
     if (authFailure) return authFailure;
     if (!ctx.handlePrivilegedRequest) return c.json({ error: 'Privileged channel unavailable' }, 503);
+    let body: unknown;
     let request;
     try {
-      request = parsePrivilegedRequest(await c.req.json());
+      body = await c.req.json();
+    } catch {
+      return c.json({ error: 'Privileged request body must be valid JSON.' }, 400);
+    }
+    try {
+      request = parsePrivilegedRequest(body);
     } catch (error) {
       if (error instanceof PrivilegedProtocolError) {
         return c.json({ error: error.message }, 400);
