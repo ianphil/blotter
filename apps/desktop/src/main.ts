@@ -172,7 +172,7 @@ async function startMvpServer(): Promise<string> {
     ? path.join(process.resourcesPath, 'dist', 'bin.mjs')
     : path.join(process.cwd(), 'apps', 'server', 'dist', 'bin.mjs');
   const nodePath = process.execPath;
-  const tokenValue = randomBytes(32).toString('base64url');
+  const tokenValue = process.env.CHAMBER_SERVER_TOKEN ?? randomBytes(32).toString('base64url');
 
   serverChild = spawn(nodePath, [serverEntry], {
     env: {
