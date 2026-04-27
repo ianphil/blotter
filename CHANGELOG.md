@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.31.4 (2026-04-27)
+
+### Genesis lifecycle
+
+- **Wait for mind readiness after genesis** — Chamber now keeps the genesis gate active until the created mind is loaded and selected, preventing the first chat view from opening before chat state is ready.
+- **Load working memory into first context** — agent identity loading now includes existing `.working-memory/memory.md`, `rules.md`, and `log.md` content in the system message so the first turn after genesis has the expected memory context.
+
 ## v0.31.3 (2026-04-27)
 
 ### Lens
