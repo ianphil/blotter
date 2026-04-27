@@ -41,6 +41,8 @@ test.describe('electron Monica existing mind smoke', () => {
   test('opens an existing Monica mind without a live chat turn', async () => {
     const page = await findRendererPage(app?.browser, app?.logs ?? []);
     await page.waitForLoadState('domcontentloaded');
+    await expect(page.locator('#root')).not.toBeEmpty();
+    await expect(page.getByRole('button', { name: /Open Existing/i })).toBeVisible();
 
     const mind = await page.evaluate(async (pathToMind) => {
       const mind = await window.electronAPI.mind.add(pathToMind);
@@ -52,6 +54,19 @@ test.describe('electron Monica existing mind smoke', () => {
       () => page.evaluate(() => window.electronAPI.mind.list().then((minds) => minds.map((item) => item.identity.name))),
     ).toEqual(['Monica']);
 
+    const nestedMindPath = path.join(mindPath, '.github', 'agents');
+    const sameMind = await page.evaluate(async (nestedPathToMind) => {
+      const sameMind = await window.electronAPI.mind.add(nestedPathToMind);
+      await window.electronAPI.mind.setActive(sameMind.mindId);
+      return sameMind;
+    }, nestedMindPath);
+
+    await expect.poll(
+      () => page.evaluate(() => window.electronAPI.mind.list().then((minds) => minds.map((item) => item.identity.name))),
+    ).toEqual(['Monica']);
+
+    expect(sameMind.mindId).toBe(mind.mindId);
+    await expect(page.getByRole('button', { name: 'Monica' })).toHaveCount(1);
     await page.getByRole('button', { name: 'Monica' }).first().click();
     await expect(page.getByText('How can I help you today?')).toBeVisible();
     await expect(page.getByPlaceholder('Message your agent… (paste an image to attach)')).toBeEnabled();
