@@ -44,7 +44,8 @@ if (!fs.existsSync(appAsarPath)) {
 
 const appAsarFiles = asar.listPackage(appAsarPath);
 const rendererEntry = '/.vite/renderer/main_window/index.html';
-if (!appAsarFiles.includes(rendererEntry)) {
+const normalizedAppAsarFiles = appAsarFiles.map((file) => file.replaceAll('\\', '/'));
+if (!normalizedAppAsarFiles.includes(rendererEntry)) {
   console.error(`Packaged app is missing renderer entry ${rendererEntry}.`);
   process.exit(1);
 }
