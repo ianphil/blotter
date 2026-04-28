@@ -64,4 +64,19 @@ describe('MessageList', () => {
     expect(screen.getAllByText('You').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText('Hello directly.')).toBeTruthy();
   });
+
+  it('falls back when an A2A sender name is blank', () => {
+    renderMessages([
+      {
+        id: 'a2a-blank',
+        role: 'user',
+        blocks: [{ type: 'text', content: 'Blank sender.' }],
+        timestamp: 1000,
+        sender: { mindId: Q.mindId, name: '   ' },
+      },
+    ]);
+
+    expect(screen.getAllByText('Unknown Agent').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('Blank sender.')).toBeTruthy();
+  });
 });

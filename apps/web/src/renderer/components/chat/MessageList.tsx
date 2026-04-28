@@ -11,18 +11,24 @@ function agentColor(minds: MindContext[], mindId: string): string {
   return AGENT_COLORS[(idx >= 0 ? idx : 0) % AGENT_COLORS.length];
 }
 
+function displayName(name: string, fallback: string): string {
+  const trimmed = name.trim();
+  return trimmed.length > 0 ? trimmed : fallback;
+}
+
 function messagePresenter(message: ChatMessage, agentName: string, minds: MindContext[]) {
   if (message.role === 'assistant') {
+    const name = displayName(agentName, 'Agent');
     return {
-      name: agentName,
-      initial: agentName.charAt(0).toUpperCase(),
+      name,
+      initial: name.charAt(0).toUpperCase(),
       color: undefined,
       isAgentSender: false,
     };
   }
 
   if (message.sender && message.sender.mindId !== 'user') {
-    const name = message.sender.name;
+    const name = displayName(message.sender.name, 'Unknown Agent');
     return {
       name,
       initial: name.charAt(0).toUpperCase(),
