@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.38.0 (2026-04-30)
+
+### Genesis marketplace
+
+- **Enroll marketplaces from install links** — Chamber now registers the `chamber://install?registry=...` protocol, handles cold-start and already-running app links, and documents README badge/fallback URLs for one-click Genesis marketplace enrollment. (#172)
+
+### Packaging
+
+- **Refresh the packaged Copilot CLI pin** — the committed desktop runtime now pins `@github/copilot@1.0.40-1` so package smoke checks match the CLI binary shipped by the runtime package.
+
 ## v0.37.0 (2026-04-30)
 
 ### Genesis marketplace
