@@ -10,7 +10,7 @@
     "packages/*"
   ],
   "scripts": {
-    "start": "electron-forge start",
+    "start": "node scripts/check-sdk-versions.js && electron-forge start",
     "package": "npm --workspace @chamber/server run build && node scripts/prepare-node-runtime.js && electron-forge package",
     "make": "npm run make:builder",
     "make:forge": "npm --workspace @chamber/server run build && node scripts/prepare-node-runtime.js && electron-forge make",

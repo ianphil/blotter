@@ -60,7 +60,9 @@ test.describe('electron Genesis Ernest chat smoke', () => {
     await page.getByRole('button', { name: /Someone else/i }).click();
     await page.getByPlaceholder('e.g. Tony Stark, Moneypenny, Gandalf...').fill(ernestName);
     await page.getByRole('button', { name: /That's who I am/i }).click();
-    await page.getByRole('button', { name: /Engineering Partner/i }).click();
+    await page.getByRole('button', { name: /Something else/i }).click();
+    await page.getByPlaceholder(/Creative Director, Debate Coach/).fill('QA Tester');
+    await page.getByRole('button', { name: /That's my purpose/i }).click();
 
     await expect(page.getByText('How can I help you today?')).toBeVisible({ timeout: 300_000 });
     await expect(page.getByText(ernestName)).toBeVisible();
