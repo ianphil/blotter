@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.39.1 (2026-05-04)
+
+### Packaging
+
+- **Remove legacy Forge macOS signing wiring** — macOS signing now has a single electron-builder path through `CHAMBER_MACOS_SIGNING`, keeping the current Windows release workflow independent of future Apple certificate setup. (#179)
+
 ## v0.39.0 (2026-05-04)
 
 ### macOS
