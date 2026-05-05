@@ -58,7 +58,7 @@ test.describe('electron Genesis Ernest chat smoke', () => {
     await page.getByRole('button', { name: /New Agent/i }).click();
     await page.getByRole('button', { name: 'Begin' }).click();
     await page.getByRole('button', { name: /Someone else/i }).click();
-    await page.getByPlaceholder('e.g. Tony Stark, Gandalf, your cool aunt...').fill(ernestName);
+    await page.getByPlaceholder('e.g. Tony Stark, Moneypenny, Gandalf...').fill(ernestName);
     await page.getByRole('button', { name: /That's who I am/i }).click();
     await page.getByRole('button', { name: /Engineering Partner/i }).click();
 
